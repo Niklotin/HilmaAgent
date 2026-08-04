@@ -49,7 +49,7 @@ public class RetrievalEvaluator(
 {
     public async Task<EvalReport> EvaluateAsync(IReadOnlyList<EvalQuery> queries, CancellationToken ct = default)
     {
-        if (embeddings.ModelId == "deterministic-fake")
+        if (embeddings.ModelId == DeterministicEmbeddingProvider.ModelIdentifier)
             throw new InvalidOperationException(
                 "Retrieval evaluation is meaningless against the deterministic stand-in provider: it matches shared " +
                 "tokens, not meaning, so the score would measure keyword overlap. Configure a real embedding provider.");

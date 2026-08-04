@@ -1,4 +1,4 @@
-services:
+﻿services:
   postgres:
     image: postgres:17-alpine
     environment:
@@ -37,9 +37,9 @@ services:
       Qdrant__Host: qdrant
       Embeddings__Endpoint: "${AZURE_OPENAI_ENDPOINT}"
       Embeddings__ApiKey: "${AZURE_OPENAI_API_KEY}"
-      # Set true to run the stack without an Azure key - vectors become meaningless, so
+      # 'fake' runs the stack without an Azure key; vectors become meaningless, so
       # retrieval quality cannot be evaluated in that mode.
-      Embeddings__UseFake: "${EMBEDDINGS_USE_FAKE:-false}"
+      Embeddings__Provider: "${EMBEDDINGS_PROVIDER:-azure}"
     restart: unless-stopped
 
   api:
@@ -56,10 +56,11 @@ services:
       Qdrant__Host: qdrant
       Embeddings__Endpoint: "${AZURE_OPENAI_ENDPOINT}"
       Embeddings__ApiKey: "${AZURE_OPENAI_API_KEY}"
-      Embeddings__UseFake: "${EMBEDDINGS_USE_FAKE:-false}"
+      Embeddings__Provider: "${EMBEDDINGS_PROVIDER:-azure}"
     ports:
       - "5080:8080"
 
 volumes:
   postgres-data:
   qdrant-data:
+

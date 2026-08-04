@@ -30,8 +30,24 @@ public class EmbeddingOptions
     public int BatchSize { get; set; } = 64;
 
     /// <summary>
-    /// Use a deterministic local stand-in instead of calling Azure. Lets the stack run end to end with
-    /// no key — the vectors are meaningless, so retrieval quality is not testable in this mode.
+    /// Which implementation to resolve — see <see cref="EmbeddingProviders"/>. A named switch rather
+    /// than a boolean because a self-hosted model is a planned third option, and adding it should be
+    /// a config value rather than a change to the wiring.
     /// </summary>
-    public bool UseFake { get; set; }
+    public string Provider { get; set; } = EmbeddingProviders.Azure;
+}
+
+public static class EmbeddingProviders
+{
+    /// <summary>Azure OpenAI deployment. The default; needs an endpoint and key.</summary>
+    public const string Azure = "azure";
+
+    /// <summary>
+    /// Deterministic local stand-in. Runs the stack end to end with no key, but the vectors carry no
+    /// meaning, so retrieval quality cannot be evaluated in this mode.
+    /// </summary>
+    public const string Fake = "fake";
+
+    // Planned: "local" — a self-hosted multilingual embedding model as a compose service, for a stack
+    // that runs with no account at all. Slots in here without touching anything else.
 }

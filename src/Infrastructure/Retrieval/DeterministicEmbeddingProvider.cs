@@ -19,7 +19,10 @@ public class DeterministicEmbeddingProvider(IOptions<EmbeddingOptions> options) 
 {
     private readonly EmbeddingOptions _options = options.Value;
 
-    public string ModelId => "deterministic-fake";
+    /// <summary>Recorded against every vector, and the marker the evaluation harness refuses to score.</summary>
+    public const string ModelIdentifier = "deterministic-fake";
+
+    public string ModelId => ModelIdentifier;
 
     public int Dimensions => _options.Dimensions;
 

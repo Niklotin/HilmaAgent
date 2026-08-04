@@ -91,13 +91,18 @@ public static class InfrastructureServiceCollectionExtensions
 
         services.AddSingleton<NoticeChunker>();
 
-        // The stand-in provider keeps the stack runnable without an Azure key; it is opt-in so a
-        // missing key fails loudly at startup rather than silently producing meaningless vectors.
+        // Opt-in by name: an unrecognised or absent value resolves to Azure, so a missing key fails
+        // loudly rather than silently falling back to meaningless vectors.
         var embeddings = configuration.GetSection(EmbeddingOptions.SectionName).Get<EmbeddingOptions>() ?? new EmbeddingOptions();
-        if (embeddings.UseFake)
-            services.AddSingleton<IEmbeddingProvider, DeterministicEmbeddingProvider>();
-        else
-            services.AddSingleton<IEmbeddingProvider, AzureOpenAIEmbeddingProvider>();
+        switch (embeddings.Provider?.Trim().ToLowerInvariant())
+        {
+            case EmbeddingProviders.Fake:
+                services.AddSingleton<IEmbeddingProvider, DeterministicEmbeddingProvider>();
+                break;
+            default:
+                services.AddSingleton<IEmbeddingProvider, AzureOpenAIEmbeddingProvider>();
+                break;
+        }
 
         services.AddSingleton(provider =>
         {

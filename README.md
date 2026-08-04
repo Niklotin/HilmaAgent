@@ -195,9 +195,14 @@ The binding constraint is Finnish. That rules out English-only models and makes 
 the deciding factor; `text-embedding-3-large` handles Finnish well, and Azure exposure is worth
 something on a CV.
 
-A deterministic local stand-in (`Embeddings:UseFake=true`) lets the stack run end to end with no key
-— useful for anyone cloning the repo. It matches shared tokens, not meaning, so **the evaluation
-harness refuses to score against it** rather than reporting a number that measures keyword overlap.
+The provider is selected by name (`Embeddings:Provider` — `azure` or `fake`) rather than by a
+boolean, because a self-hosted multilingual model is a planned third option: running the whole stack
+with no account at all is worth more to someone cloning this repo than the ~€0.30/month the hosted
+model costs. Adding it is a new `IEmbeddingProvider` and a config value, not a change to the wiring.
+
+The `fake` provider is a deterministic local stand-in that lets the stack run end to end with no key.
+It matches shared tokens, not meaning, so **the evaluation harness refuses to score against it**
+rather than reporting a number that measures keyword overlap.
 
 ### Filters run inside the vector search
 
