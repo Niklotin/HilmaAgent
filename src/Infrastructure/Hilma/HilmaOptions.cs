@@ -6,9 +6,11 @@ public class HilmaOptions
 {
     public const string SectionName = "Hilma";
 
-    /// <summary>Base address of the Hilma AVP Read API. Verify against the developer portal.</summary>
+    /// <summary>
+    /// Base address of the Hilma AVP Read API, from the published OpenAPI document (servers[0].url).
+    /// </summary>
     [Required]
-    public string BaseUrl { get; set; } = "https://api.hankintailmoitukset.fi/";
+    public string BaseUrl { get; set; } = "https://api.hankintailmoitukset.fi/avp-notice";
 
     /// <summary>
     /// APIM subscription key. Kept in user-secrets locally, environment variables elsewhere.
@@ -19,14 +21,18 @@ public class HilmaOptions
     /// <summary>Header the APIM gateway expects the subscription key in.</summary>
     public string SubscriptionKeyHeader { get; set; } = "Ocp-Apim-Subscription-Key";
 
-    /// <summary>Relative path of the search endpoint. TODO: confirm against live API docs.</summary>
+    /// <summary>
+    /// Relative path of the search endpoint.
+    /// TODO: still unverified — the Read API's OpenAPI document contains no search operation, so
+    /// this belongs to the separate Search API and its base URL may differ from <see cref="BaseUrl"/>.
+    /// </summary>
     public string SearchPath { get; set; } = "notices";
 
     /// <summary>
     /// Relative path template of the detail endpoint; <c>{id}</c> is substituted.
-    /// TODO: confirm against live API docs.
+    /// Confirmed against the Read API OpenAPI document.
     /// </summary>
-    public string NoticeDetailPath { get; set; } = "notices/{id}";
+    public string NoticeDetailPath { get; set; } = "api/avp/notices/{id}";
 
     /// <summary>Page size requested from the search endpoint.</summary>
     [Range(1, 500)]

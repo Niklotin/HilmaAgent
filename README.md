@@ -18,15 +18,16 @@ the deterministic score, the disagreement is surfaced rather than silently resol
 
 | Phase | Scope | State |
 |---|---|---|
-| 1 | Ingestion — Hilma client, Postgres, incremental worker | scaffolded, **not yet run against the live API** |
+| 1 | Ingestion — Hilma client, Postgres, incremental worker | detail path + parser verified against the API spec; **blocked on the search endpoint** |
 | 2 | Retrieval — chunking, embeddings, Qdrant | not started |
 | 3 | Agent — Semantic Kernel plugins, assessments | not started |
 | 4 | React approval queue | not started |
 | 5 | README polish, metrics | not started |
 
 **Phase 1 is not done.** The pipeline builds, is tested end-to-end against a stubbed API, and
-migrates a real Postgres — but no live notice has been ingested, because the Hilma AVP API requires
-registration and no subscription key has been obtained yet. See *Before this is real* below.
+migrates a real Postgres. The detail endpoint and the parser are now verified against the published
+OpenAPI document — but no live notice has been ingested, because the *search* endpoint is still
+unconfirmed and search is the only way to discover notice identifiers. See *Before this is real*.
 
 ## Stack
 
@@ -95,13 +96,30 @@ notice is not.
 to zero would quietly poison Phase 3's value-band scoring, so absent and genuinely-zero remain
 distinguishable.
 
+## Notice format: one contract, not two
+
+The original plan treated "legacy vs eForms" as a decision to make. Reading the Read API's OpenAPI
+document dissolved it: **a single `NoticeContract` serves all three families.** Its `type`
+discriminator spans legacy TED F-forms (`Contract` = F02_2014), Finnish national notices
+(`NationalContract`, `NationalSmallValueProcurement`), and eForms (`EForms4` … `EFormsE6`) — 83
+values in one enum.
+
+So there is one parser, and `type` tells you what you're looking at. No format flag, no dual code
+path. The enum maps in `HilmaEnums.cs` are generated from the spec rather than transcribed, since
+83 hand-copied integer mappings is 83 chances to introduce a silent error.
+
+Two consequences worth knowing:
+
+- **Enums arrive as bare integers.** `type: 200` and `contractingAuthorityType: 2` mean nothing
+  without the map, so both the code and the resolved name are stored. An unrecognised code keeps the
+  integer and leaves the name null — new notice types will appear before we regenerate.
+- **Estimated value is a range, not a number.** `ValueRangeContract` is `Exact | Range | Undefined`,
+  and the buyer can withhold it outright. All four states are preserved (`EstimatedValue`,
+  `…Min`/`…Max`, `…Withheld`), because Phase 3's value-band scoring is only honest if
+  "€50k–250k", "exactly €120k", "withheld", and "not stated" stay distinguishable.
+
 ## Open decisions
 
-- **Notice format** — legacy vs eForms vs both. *Deferred until live responses can be inspected.*
-  The parser is currently tolerant of both shapes: every field read tries a list of candidate names
-  across both vocabularies and yields null rather than throwing. This is a deliberate placeholder,
-  not the final answer — once the real shape is known, the intent is to commit to one and document
-  the limitation.
 - **LLM provider** — Azure OpenAI vs Claude API. Kept behind an interface either way; not needed
   until Phase 3.
 - **Chunking strategy** — whole notice vs section-level. Phase 2.
@@ -111,15 +129,25 @@ turns out to be worth the demo value).
 
 ## Before this is real
 
-1. Register at the [developer portal](https://hns-hilma-prod-apim.developer.azure-api.net/) and get
-   a subscription key.
-2. **Verify the endpoint paths and field names against the live API.** `Hilma:SearchPath`,
-   `Hilma:NoticeDetailPath`, and the candidate field names in `TolerantNoticeParser` are informed
-   guesses, marked `TODO` in the source. They have not been confirmed.
-3. Replace `tests/HilmaAgent.Tests/Fixtures/*.json` with recorded real responses and tighten the
-   assertions — see the note in that folder. The current fixtures prove the pipeline holds together,
-   not that the mapping is correct.
-4. Tune `Hilma:RequestsPerWindow` to the API's actual published limit.
+1. ~~Register for a subscription key~~ — done.
+2. ~~Verify the detail endpoint and field names~~ — done, against the Read API OpenAPI document.
+   Base URL `https://api.hankintailmoitukset.fi/avp-notice`, detail path `api/avp/notices/{noticeId}`,
+   key in the `Ocp-Apim-Subscription-Key` header. `noticeId` is an int32; the column stores it as text.
+3. **The search endpoint is still unverified.** The Read API's spec contains no search operation —
+   it belongs to the separate Search API, whose base URL may differ. `Hilma:SearchPath` and the
+   paging parameters in `HilmaClient.SearchAsync` remain guesses, marked `TODO`. **Ingestion cannot
+   run until this is resolved**, since search is the only way to discover identifiers.
+4. Add a real Finnish notice to `tests/Fixtures` once ingestion runs. The current fixture is the
+   vendor's own example — authoritative on shape, synthetic in its values, and it omits
+   `datePublished` entirely.
+5. Tune `Hilma:RequestsPerWindow` to the API's actual published limit.
+
+## Not yet used
+
+The Read API also exposes `/api/cpv/cpvtree` and `/api/cpv/cpvsuppl/tree` — the full CPV taxonomy as
+a tree, filterable by contract type and language. Phase 3's `score_fit` wants this: CPV matching on
+string equality alone would miss that `72200000` (software programming) sits under `72000000` (IT
+services), and a hierarchy-aware overlap score is a good deal more defensible than an exact match.
 
 ## Known issues
 

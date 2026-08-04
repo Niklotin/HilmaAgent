@@ -484,3 +484,7 @@ $RECYCLE.BIN/
 # Local secrets
 .env
 
+
+# Raw API samples pulled from the portal console (may be large; curate into tests/Fixtures instead)
+samples/
+

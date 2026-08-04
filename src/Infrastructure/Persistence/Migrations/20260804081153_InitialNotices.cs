@@ -30,16 +30,24 @@ namespace HilmaAgent.Infrastructure.Persistence.Migrations
                 columns: table => new
                 {
                     Id = table.Column<string>(type: "character varying(128)", maxLength: 128, nullable: false),
+                    NoticeTypeCode = table.Column<int>(type: "integer", nullable: true),
                     NoticeType = table.Column<string>(type: "character varying(128)", maxLength: 128, nullable: true),
                     Title = table.Column<string>(type: "character varying(1024)", maxLength: 1024, nullable: true),
                     BuyerName = table.Column<string>(type: "character varying(512)", maxLength: 512, nullable: true),
+                    BuyerNationalRegistrationNumber = table.Column<string>(type: "character varying(64)", maxLength: 64, nullable: true),
                     BuyerOrganizationType = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: true),
                     CpvCodes = table.Column<List<string>>(type: "text[]", nullable: false),
                     EstimatedValue = table.Column<decimal>(type: "numeric", nullable: true),
+                    EstimatedValueMin = table.Column<decimal>(type: "numeric", nullable: true),
+                    EstimatedValueMax = table.Column<decimal>(type: "numeric", nullable: true),
+                    EstimatedValueWithheld = table.Column<bool>(type: "boolean", nullable: false),
                     Currency = table.Column<string>(type: "character varying(8)", maxLength: 8, nullable: true),
                     PublicationDate = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
                     SubmissionDeadline = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true),
-                    Region = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: true),
+                    Region = table.Column<List<string>>(type: "text[]", nullable: false),
+                    Language = table.Column<string>(type: "character varying(8)", maxLength: 8, nullable: true),
+                    IsLatest = table.Column<bool>(type: "boolean", nullable: true),
+                    IsCancelled = table.Column<bool>(type: "boolean", nullable: true),
                     RawPayload = table.Column<string>(type: "jsonb", nullable: false),
                     FetchedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
                 },
@@ -58,6 +66,12 @@ namespace HilmaAgent.Infrastructure.Persistence.Migrations
                 name: "IX_Notices_PublicationDate",
                 table: "Notices",
                 column: "PublicationDate");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Notices_Region",
+                table: "Notices",
+                column: "Region")
+                .Annotation("Npgsql:IndexMethod", "gin");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Notices_SubmissionDeadline",

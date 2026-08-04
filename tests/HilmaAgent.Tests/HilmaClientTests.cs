@@ -1,4 +1,4 @@
-using System.Net;
+﻿using System.Net;
 using HilmaAgent.Core.Notices;
 using HilmaAgent.Infrastructure;
 using Microsoft.Extensions.Configuration;
@@ -69,38 +69,38 @@ public class HilmaClientTests : IDisposable
     [Fact]
     public async Task Detail_request_sends_the_subscription_key_and_returns_raw_json()
     {
-        _server.Given(Request.Create().WithPath("/notices/n-1")
+        _server.Given(Request.Create().WithPath("/api/avp/notices/n-1")
                 .WithHeader("Ocp-Apim-Subscription-Key", "test-key").UsingGet())
-            .RespondWith(Response.Create().WithBody(Fixture.Read("notice-legacy.json")));
+            .RespondWith(Response.Create().WithBody(Fixture.Read("notice-contract-example.json")));
 
         var document = await CreateClient().GetNoticeAsync("n-1");
 
         document.ShouldNotBeNull();
         document.NoticeId.ShouldBe("n-1");
-        document.RawJson.ShouldContain("Ohjelmistokehityksen");
+        document.RawJson.ShouldContain("Cars for the London office");
     }
 
     [Fact]
     public async Task Retries_a_429_then_succeeds()
     {
-        _server.Given(Request.Create().WithPath("/notices/n-throttled").UsingGet())
+        _server.Given(Request.Create().WithPath("/api/avp/notices/n-throttled").UsingGet())
             .InScenario("throttle").WillSetStateTo("second-attempt")
             .RespondWith(Response.Create().WithStatusCode(HttpStatusCode.TooManyRequests));
 
-        _server.Given(Request.Create().WithPath("/notices/n-throttled").UsingGet())
+        _server.Given(Request.Create().WithPath("/api/avp/notices/n-throttled").UsingGet())
             .InScenario("throttle").WhenStateIs("second-attempt")
             .RespondWith(Response.Create().WithBody("""{"noticeId":"n-throttled"}"""));
 
         var document = await CreateClient().GetNoticeAsync("n-throttled");
 
         document.ShouldNotBeNull();
-        _server.LogEntries.Count(entry => entry.RequestMessage?.Path == "/notices/n-throttled").ShouldBe(2);
+        _server.LogEntries.Count(entry => entry.RequestMessage?.Path == "/api/avp/notices/n-throttled").ShouldBe(2);
     }
 
     [Fact]
     public async Task Missing_notice_returns_null_rather_than_throwing()
     {
-        _server.Given(Request.Create().WithPath("/notices/gone").UsingGet())
+        _server.Given(Request.Create().WithPath("/api/avp/notices/gone").UsingGet())
             .RespondWith(Response.Create().WithStatusCode(HttpStatusCode.NotFound));
 
         (await CreateClient().GetNoticeAsync("gone")).ShouldBeNull();
@@ -108,3 +108,4 @@ public class HilmaClientTests : IDisposable
 
     public void Dispose() => _server.Dispose();
 }
+

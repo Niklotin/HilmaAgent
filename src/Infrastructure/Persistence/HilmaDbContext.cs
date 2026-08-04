@@ -19,14 +19,17 @@ public class HilmaDbContext(DbContextOptions<HilmaDbContext> options) : DbContex
             notice.Property(n => n.Title).HasMaxLength(1024);
             notice.Property(n => n.BuyerName).HasMaxLength(512);
             notice.Property(n => n.BuyerOrganizationType).HasMaxLength(256);
-            notice.Property(n => n.Region).HasMaxLength(256);
+            notice.Property(n => n.BuyerNationalRegistrationNumber).HasMaxLength(64);
             notice.Property(n => n.Currency).HasMaxLength(8);
+            notice.Property(n => n.Language).HasMaxLength(8);
             notice.Property(n => n.CpvCodes).HasColumnType("text[]");
+            notice.Property(n => n.Region).HasColumnType("text[]");
             notice.Property(n => n.RawPayload).HasColumnType("jsonb");
 
             notice.HasIndex(n => n.PublicationDate);
             notice.HasIndex(n => n.SubmissionDeadline);
             notice.HasIndex(n => n.CpvCodes).HasMethod("gin");
+            notice.HasIndex(n => n.Region).HasMethod("gin");
         });
 
         modelBuilder.Entity<IngestionCheckpoint>(checkpoint =>

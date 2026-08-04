@@ -1,11 +1,13 @@
 # Fixtures
 
-**These payloads are hand-written approximations, not recorded responses.** The Hilma AVP API
-requires registration and we have not yet confirmed the real field names against the live API.
+`notice-contract-example.json` is the response example published in the Hilma AVP **Read API**
+OpenAPI document (`info.title: "Read API"`, version 1.0), extracted verbatim from
+`paths./api/avp/notices/{noticeId}.get.responses.200.content.text/plain.example`.
 
-They exist to pin the *tolerance* of the parser — that it survives two differently-shaped payloads
-and never loses the raw JSON — not to assert the real schema.
+It is the API vendor's own example, so the **shape and field names are authoritative** — that is
+what the parser tests assert against. The *values* are synthetic (notice id `0`, "Cars for the
+London office", a London NUTS code), so don't read anything into them.
 
-**Replace them with recorded responses as soon as a subscription key is available**, then tighten
-the assertions. Until that happens, a green test suite here says the pipeline holds together; it
-does not say the mapping is correct.
+Still worth doing once ingestion runs: drop in a real Finnish notice alongside this one. The
+vendor example won't exercise everything real data will — notably `datePublished`, which the example
+omits entirely.

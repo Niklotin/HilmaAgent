@@ -50,6 +50,10 @@ namespace HilmaAgent.Infrastructure.Persistence.Migrations
                         .HasMaxLength(512)
                         .HasColumnType("character varying(512)");
 
+                    b.Property<string>("BuyerNationalRegistrationNumber")
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
                     b.Property<string>("BuyerOrganizationType")
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)");
@@ -65,12 +69,34 @@ namespace HilmaAgent.Infrastructure.Persistence.Migrations
                     b.Property<decimal?>("EstimatedValue")
                         .HasColumnType("numeric");
 
+                    b.Property<decimal?>("EstimatedValueMax")
+                        .HasColumnType("numeric");
+
+                    b.Property<decimal?>("EstimatedValueMin")
+                        .HasColumnType("numeric");
+
+                    b.Property<bool>("EstimatedValueWithheld")
+                        .HasColumnType("boolean");
+
                     b.Property<DateTimeOffset>("FetchedAt")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<bool?>("IsCancelled")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool?>("IsLatest")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Language")
+                        .HasMaxLength(8)
+                        .HasColumnType("character varying(8)");
 
                     b.Property<string>("NoticeType")
                         .HasMaxLength(128)
                         .HasColumnType("character varying(128)");
+
+                    b.Property<int?>("NoticeTypeCode")
+                        .HasColumnType("integer");
 
                     b.Property<DateTimeOffset?>("PublicationDate")
                         .HasColumnType("timestamp with time zone");
@@ -79,9 +105,9 @@ namespace HilmaAgent.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasColumnType("jsonb");
 
-                    b.Property<string>("Region")
-                        .HasMaxLength(256)
-                        .HasColumnType("character varying(256)");
+                    b.PrimitiveCollection<List<string>>("Region")
+                        .IsRequired()
+                        .HasColumnType("text[]");
 
                     b.Property<DateTimeOffset?>("SubmissionDeadline")
                         .HasColumnType("timestamp with time zone");
@@ -97,6 +123,10 @@ namespace HilmaAgent.Infrastructure.Persistence.Migrations
                     NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("CpvCodes"), "gin");
 
                     b.HasIndex("PublicationDate");
+
+                    b.HasIndex("Region");
+
+                    NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("Region"), "gin");
 
                     b.HasIndex("SubmissionDeadline");
 

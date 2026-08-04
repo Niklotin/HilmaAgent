@@ -75,13 +75,17 @@ public record NoticeSummaryResponse(
     string? NoticeType,
     List<string> CpvCodes,
     decimal? EstimatedValue,
+    decimal? EstimatedValueMin,
+    decimal? EstimatedValueMax,
+    bool EstimatedValueWithheld,
     string? Currency,
     DateTimeOffset? PublicationDate,
     DateTimeOffset? SubmissionDeadline,
-    string? Region,
+    List<string> Region,
     DateTimeOffset FetchedAt)
 {
     public static NoticeSummaryResponse From(Notice n) => new(
-        n.Id, n.Title, n.BuyerName, n.NoticeType, n.CpvCodes, n.EstimatedValue, n.Currency,
-        n.PublicationDate, n.SubmissionDeadline, n.Region, n.FetchedAt);
+        n.Id, n.Title, n.BuyerName, n.NoticeType, n.CpvCodes,
+        n.EstimatedValue, n.EstimatedValueMin, n.EstimatedValueMax, n.EstimatedValueWithheld,
+        n.Currency, n.PublicationDate, n.SubmissionDeadline, n.Region, n.FetchedAt);
 }

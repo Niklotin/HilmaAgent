@@ -1,0 +1,508 @@
+﻿{
+    "id":  0,
+    "procurementProjectId":  0,
+    "reducedTimeLimitsForReceiptOfTenders":  false,
+    "corrigendumAdditionalInformation":  [
+
+                                         ],
+    "type":  200,
+    "legalBasis":  "32014L0024",
+    "project":  {
+                    "id":  0,
+                    "title":  "Cars for the London office",
+                    "contractType":  1,
+                    "procurementCategory":  0,
+                    "referenceNumber":  "2114124214-2",
+                    "jointProcurement":  false,
+                    "centralPurchasing":  false,
+                    "coPurchasers":  [
+
+                                     ],
+                    "validationState":  0,
+                    "organisation":  {
+                                         "id":  "00000000-0000-0000-0000-000000000000",
+                                         "information":  {
+                                                             "officialName":  "Innofactor Oyj",
+                                                             "nationalRegistrationNumber":  "0686163-7",
+                                                             "department":  "Palace Solutions",
+                                                             "nutsCodes":  [
+                                                                               "UKI32"
+                                                                           ],
+                                                             "postalAddress":  {
+                                                                                   "streetAddress":  "Buckingham Palace",
+                                                                                   "postalCode":  "SW1A 1AA",
+                                                                                   "town":  "London",
+                                                                                   "country":  "UK"
+                                                                               },
+                                                             "email":  "erin.example@innofactor.com",
+                                                             "contactPerson":  "",
+                                                             "mainUrl":  "https://www.innofactor.com",
+                                                             "validationState":  0
+                                                         },
+                                         "contractingAuthorityType":  2,
+                                         "contractingType":  0,
+                                         "mainActivity":  1024,
+                                         "otherMainActivity":  "Cruising around London",
+                                         "mainActivityUtilities":  0,
+                                         "validationState":  0,
+                                         "dataSource":  0,
+                                         "identifierMissing":  false,
+                                         "vhsStatus":  0
+                                     },
+                    "state":  0,
+                    "defenceWorks":  0,
+                    "defenceSupplies":  0,
+                    "publish":  2,
+                    "agricultureWorks":  0,
+                    "isPrivate":  false,
+                    "isConcluded":  false,
+                    "tendering":  0
+                },
+    "lotsInfo":  {
+                     "divisionLots":  true,
+                     "quantityOfLots":  2,
+                     "lotsSubmittedFor":  2,
+                     "lotsSubmittedForQuantity":  1,
+                     "lotsMaxAwarded":  true,
+                     "lotsMaxAwardedQuantity":  1,
+                     "lotCombinationPossible":  true,
+                     "lotCombinationPossibleDescription":  [
+                                                               "We reserve right to combine lots as we please."
+                                                           ],
+                     "validationState":  0
+                 },
+    "objectDescriptions":  [
+                               {
+                                   "title":  "Some cars with right side drive for UK office",
+                                   "mainCpvCode":  {
+
+                                                   },
+                                   "additionalCpvCodes":  [
+                                                              {
+                                                                  "code":  "34110000",
+                                                                  "name":  "Passenger cars",
+                                                                  "vocCodes":  [
+                                                                                   {
+                                                                                       "code":  "CA36"
+                                                                                   },
+                                                                                   {
+                                                                                       "code":  "MB02"
+                                                                                   }
+                                                                               ]
+                                                              }
+                                                          ],
+                                   "nutsCodes":  [
+                                                     "UKI32"
+                                                 ],
+                                   "descrProcurement":  [
+                                                            "We are looking for 3 crappy cars for normal employees, cheapness is the keyword here",
+                                                            "Some more description about cars",
+                                                            "Additional specifications..."
+                                                        ],
+                                   "disagreeAwardCriteriaToBePublished":  false,
+                                   "awardCriteria":  {
+                                                         "criterionTypes":  2,
+                                                         "qualityCriteria":  [
+
+                                                                             ],
+                                                         "costCriteria":  [
+                                                                              {
+                                                                                  "criterion":  "Operating Cost",
+                                                                                  "weighting":  "35"
+                                                                              },
+                                                                              {
+                                                                                  "criterion":  "Initial Cost",
+                                                                                  "weighting":  "65"
+                                                                              }
+                                                                          ],
+                                                         "priceCriterion":  {
+
+                                                                            },
+                                                         "criterion":  [
+
+                                                                       ],
+                                                         "criteriaStatedInProcurementDocuments":  false
+                                                     },
+                                   "estimatedValue":  {
+                                                          "type":  0,
+                                                          "value":  20003.5,
+                                                          "currency":  "EUR"
+                                                      },
+                                   "timeFrame":  {
+                                                     "type":  1,
+                                                     "days":  2000,
+                                                     "canBeRenewed":  false,
+                                                     "renewalDescription":  [
+                                                                                ""
+                                                                            ]
+                                                 },
+                                   "candidateNumberRestrictions":  {
+                                                                       "envisagedNumber":  1,
+                                                                       "envisagedMinimumNumber":  0,
+                                                                       "envisagedMaximumNumber":  0,
+                                                                       "selected":  1
+                                                                   },
+                                   "optionsAndVariants":  {
+                                                              "variantsWillBeAccepted":  true,
+                                                              "partialOffersWillBeAccepted":  false,
+                                                              "options":  true,
+                                                              "optionsDescription":  [
+                                                                                         "If they are cheap and crappy enough, we might be willing to buy more."
+                                                                                     ],
+                                                              "optionType":  0
+                                                          },
+                                   "tendersMustBePresentedAsElectronicCatalogs":  false,
+                                   "euFunds":  {
+                                                   "procurementRelatedToEuProgram":  false
+                                               },
+                                   "additionalInformation":  [
+                                                                 "Fast and discreet."
+                                                             ],
+                                   "validationState":  0
+                               },
+                               {
+                                   "title":  "Some cars with right side drive for UK office",
+                                   "mainCpvCode":  {
+
+                                                   },
+                                   "additionalCpvCodes":  [
+                                                              {
+                                                                  "code":  "34110000",
+                                                                  "name":  "Passenger cars",
+                                                                  "vocCodes":  [
+                                                                                   {
+                                                                                       "code":  "CA36"
+                                                                                   },
+                                                                                   {
+                                                                                       "code":  "MB02"
+                                                                                   }
+                                                                               ]
+                                                              }
+                                                          ],
+                                   "nutsCodes":  [
+                                                     "UKI32"
+                                                 ],
+                                   "descrProcurement":  [
+                                                            "We are looking for the best possible car for the country manager!"
+                                                        ],
+                                   "disagreeAwardCriteriaToBePublished":  false,
+                                   "awardCriteria":  {
+                                                         "criterionTypes":  8,
+                                                         "qualityCriteria":  [
+
+                                                                             ],
+                                                         "costCriteria":  [
+
+                                                                          ],
+                                                         "priceCriterion":  {
+
+                                                                            },
+                                                         "criterion":  [
+
+                                                                       ],
+                                                         "criteriaStatedInProcurementDocuments":  false
+                                                     },
+                                   "estimatedValue":  {
+                                                          "type":  0,
+                                                          "value":  100000,
+                                                          "currency":  "EUR"
+                                                      },
+                                   "timeFrame":  {
+                                                     "type":  1,
+                                                     "days":  300,
+                                                     "canBeRenewed":  true,
+                                                     "renewalDescription":  [
+                                                                                "Once the contract is done, we may renew our cars after 3 years."
+                                                                            ]
+                                                 },
+                                   "candidateNumberRestrictions":  {
+                                                                       "envisagedNumber":  1,
+                                                                       "envisagedMinimumNumber":  0,
+                                                                       "envisagedMaximumNumber":  0,
+                                                                       "selected":  1
+                                                                   },
+                                   "optionsAndVariants":  {
+                                                              "variantsWillBeAccepted":  false,
+                                                              "partialOffersWillBeAccepted":  false,
+                                                              "options":  true,
+                                                              "optionsDescription":  [
+                                                                                         "If country manager is happy, we will renew!"
+                                                                                     ],
+                                                              "optionType":  0
+                                                          },
+                                   "tendersMustBePresentedAsElectronicCatalogs":  false,
+                                   "euFunds":  {
+                                                   "procurementRelatedToEuProgram":  false
+                                               },
+                                   "additionalInformation":  [
+                                                                 "Fast and flashy."
+                                                             ],
+                                   "validationState":  0
+                               }
+                           ],
+    "communicationInformation":  {
+                                     "procurementDocumentsAvailable":  1,
+                                     "procurementDocumentsUrl":  "https://www.innofactor.com/",
+                                     "additionalInformation":  2,
+                                     "additionalInformationAddress":  {
+                                                                          "officialName":  "Innofactor Oyj",
+                                                                          "nationalRegistrationNumber":  "0686163-7",
+                                                                          "nutsCodes":  [
+                                                                                            "FI1B"
+                                                                                        ],
+                                                                          "postalAddress":  {
+                                                                                                "streetAddress":  "Keilaranta 9",
+                                                                                                "postalCode":  "FI-02150",
+                                                                                                "town":  "Espoo",
+                                                                                                "country":  "FI"
+                                                                                            },
+                                                                          "email":  "info@innofactor.com",
+                                                                          "mainUrl":  "https://blog.innofactor.com/en",
+                                                                          "validationState":  0
+                                                                      },
+                                     "otherAddressForProcurementDocuments":  {
+                                                                                 "nutsCodes":  [
+
+                                                                                               ],
+                                                                                 "postalAddress":  {
+
+                                                                                                   },
+                                                                                 "validationState":  0
+                                                                             },
+                                     "sendTendersOption":  1,
+                                     "electronicAddressToSendTenders":  "https://www.innofactor.com",
+                                     "addressToSendTenders":  {
+                                                                  "officialName":  "Innofactor Oyj",
+                                                                  "nationalRegistrationNumber":  "0686163-7",
+                                                                  "nutsCodes":  [
+                                                                                    "FI1B"
+                                                                                ],
+                                                                  "postalAddress":  {
+                                                                                        "streetAddress":  "Keilaranta 9",
+                                                                                        "postalCode":  "FI-02150",
+                                                                                        "town":  "Espoo",
+                                                                                        "country":  "FI"
+                                                                                    },
+                                                                  "email":  "info@innofactor.com",
+                                                                  "mainUrl":  "https://blog.innofactor.com/en",
+                                                                  "validationState":  0
+                                                              },
+                                     "electronicCommunicationRequiresSpecialTools":  true,
+                                     "electronicCommunicationInfoUrl":  "https://github.com/Innofactor",
+                                     "documentsEntirelyInHilma":  false,
+                                     "specsAndAdditionalDocuments":  0,
+                                     "validationState":  0
+                                 },
+    "contactPerson":  {
+                          "name":  "Erkki Esimerkki",
+                          "email":  "erkki.esimerkki@innofactor.com",
+                          "phone":  "+358 123456789"
+                      },
+    "procurementObject":  {
+                              "shortDescription":  [
+                                                       "We are looking for few cars of various classes for our London office. This is your chance to make big cash money, offer now."
+                                                   ],
+                              "estimatedValue":  {
+                                                     "type":  0,
+                                                     "value":  120003.5,
+                                                     "currency":  "EUR"
+                                                 },
+                              "mainCpvCode":  {
+                                                  "code":  "34110000",
+                                                  "name":  "Passenger cars",
+                                                  "vocCodes":  [
+                                                                   {
+                                                                       "code":  "CA36"
+                                                                   },
+                                                                   {
+                                                                       "code":  "MB02"
+                                                                   }
+                                                               ]
+                                              },
+                              "validationState":  0
+                          },
+    "conditionsInformation":  {
+                                  "professionalSuitabilityRequirements":  [
+                                                                              "Legalized car dealership"
+                                                                          ],
+                                  "economicCriteriaToParticipate":  true,
+                                  "economicCriteriaDescription":  [
+                                                                      "No unpaid taxes, credit score Kryptonite+++"
+                                                                  ],
+                                  "economicRequiredStandards":  [
+                                                                    "ISO-1337"
+                                                                ],
+                                  "technicalCriteriaToParticipate":  false,
+                                  "restrictedToShelteredWorkshop":  false,
+                                  "restrictedToShelteredProgram":  false,
+                                  "reservedOrganisationServiceMission":  false,
+                                  "executionOfServiceIsReservedForProfession":  false,
+                                  "participationIsReservedForProfession":  false,
+                                  "contractPerformanceConditions":  [
+                                                                        "Proven service quality, according to a guy called Pete from London."
+                                                                    ],
+                                  "obligationToIndicateNamesAndProfessionalQualifications":  true,
+                                  "validationState":  0
+                              },
+    "complementaryInformation":  {
+                                     "isRecurringProcurement":  false,
+                                     "estimatedTimingForFurtherNoticePublish":  [
+
+                                                                                ],
+                                     "electronicOrderingUsed":  false,
+                                     "electronicInvoicingUsed":  false,
+                                     "electronicPaymentUsed":  true,
+                                     "additionalInformation":  [
+                                                                   "This is a final remark before sending the tender off. On Hilma, displayed as the last element before preview.",
+                                                                   "Some more additional information"
+                                                               ],
+                                     "validationState":  0
+                                 },
+    "state":  0,
+    "tedPublishState":  0,
+    "previousNoticeOjsNumber":  "2019/S 100-999999",
+    "procedureInformation":  {
+                                 "procedureType":  2,
+                                 "acceleratedProcedure":  true,
+                                 "justificationForAcceleratedProcedure":  [
+                                                                              "Justification"
+                                                                          ],
+                                 "contestType":  0,
+                                 "frameworkAgreement":  {
+                                                            "includesFrameworkAgreement":  true,
+                                                            "includesConclusionOfFrameworkAgreement":  false,
+                                                            "frameworkAgreementType":  1,
+                                                            "envisagedNumberOfParticipants":  10,
+                                                            "frameworkEnvisagedType":  0,
+                                                            "includesDynamicPurchasingSystem":  false,
+                                                            "dynamicPurchasingSystemInvolvesAdditionalPurchasers":  true,
+                                                            "justificationForDurationOverFourYears":  [
+                                                                                                          "The need is for more than four years"
+                                                                                                      ],
+                                                            "dynamicPurchasingSystemWasTerminated":  false,
+                                                            "estimatedTotalValue":  {
+                                                                                        "type":  0
+                                                                                    },
+                                                            "duration":  {
+                                                                             "type":  0,
+                                                                             "canBeRenewed":  false
+                                                                         }
+                                                        },
+                                 "reductionRecourseToReduceNumberOfSolutions":  true,
+                                 "reserveRightToAwardWithoutNegotiations":  true,
+                                 "electronicAuctionWillBeUsed":  true,
+                                 "additionalInformationAboutElectronicAuction":  [
+                                                                                     "Additional information"
+                                                                                 ],
+                                 "procurementGovernedByGPA":  true,
+                                 "disagreeCriteriaForEvaluationOfProjectsPublish":  false,
+                                 "validationState":  0
+                             },
+    "tenderingInformation":  {
+                                 "tendersOrRequestsToParticipateDueDateTime":  "2020-02-01T12:00:00.0000000+00:00",
+                                 "estimatedDateOfInvitations":  "2020-02-11T12:00:00.0000000+00:00",
+                                 "languages":  [
+                                                   "FI",
+                                                   "EN"
+                                               ],
+                                 "tendersMustBeValidOption":  1,
+                                 "tendersMustBeValidUntil":  "2021-01-01T12:00:00.0000000+00:00",
+                                 "tendersMustBeValidForMonths":  12,
+                                 "estimatedDateOfContractNoticePublication":  "2020-01-11T12:00:00.0000000+00:00",
+                                 "tenderOpeningConditions":  {
+                                                                 "openingDateAndTime":  "2020-03-16T12:00:00.0000000+00:00",
+                                                                 "place":  [
+                                                                               "Postitalo"
+                                                                           ],
+                                                                 "informationAboutAuthorisedPersons":  [
+                                                                                                           "Erkki Esimerkki ja Jaana Jokunen"
+                                                                                                       ]
+                                                             },
+                                 "defence":  {
+                                                 "previousPublicationExists":  false,
+                                                 "hasPreviousContractNoticeOjsNumber":  false,
+                                                 "hasPreviousExAnteOjsNumber":  false,
+                                                 "payableDocuments":  false,
+                                                 "languageType":  0,
+                                                 "languages":  [
+
+                                                               ],
+                                                 "otherLanguage":  false
+                                             },
+                                 "estimatedExecutionTimeFrame":  {
+                                                                     "type":  0,
+                                                                     "canBeRenewed":  false
+                                                                 },
+                                 "validationState":  0
+                             },
+    "hasAttachments":  false,
+    "isCorrigendum":  false,
+    "isMigrated":  false,
+    "isCancelled":  false,
+    "isContractAwardCancellationNotice":  false,
+    "isLatest":  false,
+    "language":  "EN",
+    "proceduresForReview":  {
+                                "reviewBody":  {
+                                                   "officialName":  "Innofactor Oyj",
+                                                   "nationalRegistrationNumber":  "0686163-7",
+                                                   "department":  "Palace Solutions",
+                                                   "nutsCodes":  [
+                                                                     "UKI32"
+                                                                 ],
+                                                   "postalAddress":  {
+                                                                         "streetAddress":  "Buckingham Palace",
+                                                                         "postalCode":  "SW1A 1AA",
+                                                                         "town":  "London",
+                                                                         "country":  "UK"
+                                                                     },
+                                                   "email":  "erin.example@innofactor.com",
+                                                   "mainUrl":  "https://www.innofactor.com",
+                                                   "validationState":  0
+                                               },
+                                "reviewProcedure":  [
+                                                        "Procedure description for review"
+                                                    ],
+                                "validationState":  0
+                            },
+    "attachmentInformation":  {
+                                  "description":  [
+                                                      "More info in the attached link"
+                                                  ],
+                                  "links":  [
+                                                {
+                                                    "url":  "https://www.innofactor.com",
+                                                    "description":  "Link description"
+                                                }
+                                            ],
+                                  "validationState":  0
+                              },
+    "modifications":  {
+                          "additionalCpvCodes":  [
+
+                                                 ],
+                          "nutsCodes":  [
+
+                                        ],
+                          "timeFrame":  {
+                                            "type":  0,
+                                            "canBeRenewed":  false
+                                        },
+                          "totalValue":  {
+
+                                         },
+                          "awardedToGroupOfEconomicOperators":  false,
+                          "contractors":  [
+
+                                          ],
+                          "reason":  0,
+                          "increaseBeforeModifications":  {
+
+                                                          },
+                          "increaseAfterModifications":  {
+
+                                                         },
+                          "validationState":  0
+                      },
+    "isPrivateSmallValueProcurement":  false
+}
