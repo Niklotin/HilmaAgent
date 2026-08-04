@@ -19,7 +19,7 @@ the deterministic score, the disagreement is surfaced rather than silently resol
 | Phase | Scope | State |
 |---|---|---|
 | 1 | Ingestion — Hilma client, Postgres, incremental worker | **done** — runs against the live API, both notice families |
-| 2 | Retrieval — chunking, embeddings, Qdrant | built and running; **retrieval quality not yet measured** (needs an Azure OpenAI key) |
+| 2 | Retrieval — chunking, embeddings, Qdrant | **done** — measured: hit@5 100%, MRR 0.875 over 300 notices |
 | 3 | Agent — Semantic Kernel plugins, assessments | not started |
 | 4 | React approval queue | not started |
 | 5 | README polish, metrics | not started |
@@ -221,7 +221,34 @@ precise but has to be redone every time the corpus changes; CPV is the procureme
 taxonomy, so the judgement survives notices coming and going. `expectedNoticeIds` adds hand-labelling
 on top where a query needs a specific notice.
 
-**No score has been recorded yet** — that needs a real embedding provider. See *Before this is real*.
+### Measured retrieval quality
+
+Against `text-embedding-3-large`, 12 Finnish queries, corpus of 300 notices / 1,237 chunks:
+
+| | hit@1 | hit@5 | hit@10 | MRR |
+|---|---|---|---|---|
+| 200 notices / 848 chunks | 83% | 100% | 100% | 0.892 |
+| 300 notices / 1,237 chunks | 75% | 100% | 100% | 0.875 |
+
+Both rows are shown deliberately: adding 50% more notices cost 8 points of hit@1 while hit@5 held
+at 100%. That is the expected shape — more competing notices push the single best result around
+without pushing relevant results out of the top five — and it is the reason the harness exists
+rather than a one-off spot check.
+
+Two observations worth more than the aggregate:
+
+- **Cross-lingual retrieval works.** The Finnish query *"terveydenhuollon laitteet ja tarvikkeet"*
+  returned a Swedish-language notice (*"Upphandling av Hygien- och skyddsmaterial"*) as its top hit.
+  Finland publishes procurement notices in both languages; a model that only matched Finnish would
+  silently miss the Swedish ones.
+- **The misses are near-misses.** *"tekoälyratkaisut ja data-analytiikka"* ranked a monitoring-software
+  notice first — semantically apt, but its CPV codes fall outside the prefixes the query expects, so
+  the harness scores it a miss at rank 1. The judgement is CPV, not human, and CPV is coarse.
+
+**What these numbers do not show.** The queries are broad category searches against a small corpus,
+so hit@5 of 100% says the pipeline works end to end, not that retrieval is solved. The honest test is
+a larger corpus with narrower queries — and `relevantInTop10` is bounded by what exists:
+*"koulutus- ja valmennuspalvelut"* scores 2/10 mainly because this corpus holds few training notices.
 
 ## Open decisions
 
@@ -246,10 +273,31 @@ turns out to be worth the demo value).
    authoritative on shape, synthetic in its values, and it omits `datePublished` entirely.
 6. Tune `Hilma:RequestsPerWindow` to the API's actual published limit — 30/min is a guess made
    before any published figure was found.
-7. **Provide an Azure OpenAI embedding deployment and run the retrieval evaluation.** Until then
-   Phase 2 is unmeasured: the pipeline demonstrably works, but nothing says it retrieves *well*.
-   Set `AZURE_OPENAI_ENDPOINT` / `AZURE_OPENAI_API_KEY` in `.env`, re-index, then
-   `POST /api/search/evaluate` and record the numbers here.
+7. ~~Wire an embedding provider and measure retrieval~~ — done; numbers above.
+
+## What it costs to run
+
+Measured, not estimated. Finnish tokenizes at **2.5 characters per token** on this model — a
+40-character phrase came back as 16 tokens — which is denser than the 3.0 usually assumed for
+English-ish text, because Finnish compounds badly.
+
+| | |
+|---|---|
+| Corpus indexed here | 300 notices → 1,237 chunks → 1,072,547 chars ≈ **429K tokens** |
+| Cost of that | **$0.06** at $0.13 / 1M tokens |
+| Per notice | ~1,430 tokens, about **1/60th of a cent** |
+| Everything published in a 90-day window (~5,400 notices) | **~$1.00** |
+| Ongoing (~60 notices/day) | **~$0.35/month** |
+
+Queries are free in practice: a search embeds ~15 tokens, so a thousand searches costs a fraction of
+a cent. Re-embedding only happens on a model change — re-chunking is free, because `RawPayload` means
+it never re-fetches.
+
+The Phase 3 LLM will dominate this. A single assessment (profile + retrieved chunks + deterministic
+score in, a paragraph out) costs roughly 400× what embedding that notice did. Still cheap at
+portfolio scale, since the human approval gate means you assess the handful of notices that survive
+filtering rather than all of them — but it is a standing argument for keeping the scoring in code and
+paying the model only for prose.
 
 ## Known limitations
 
