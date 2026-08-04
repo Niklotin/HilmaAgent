@@ -7,10 +7,15 @@ public class HilmaOptions
     public const string SectionName = "Hilma";
 
     /// <summary>
-    /// Base address of the Hilma AVP Read API, from the published OpenAPI document (servers[0].url).
+    /// Base address of the Search API. Note this differs from <see cref="ReadBaseUrl"/> — search and
+    /// read are separate APIs behind the same subscription key.
     /// </summary>
     [Required]
-    public string BaseUrl { get; set; } = "https://api.hankintailmoitukset.fi/avp-notice";
+    public string SearchBaseUrl { get; set; } = "https://api.hankintailmoitukset.fi/avp";
+
+    /// <summary>Base address of the Read API (notice detail).</summary>
+    [Required]
+    public string ReadBaseUrl { get; set; } = "https://api.hankintailmoitukset.fi/avp-notice";
 
     /// <summary>
     /// APIM subscription key. Kept in user-secrets locally, environment variables elsewhere.
@@ -22,11 +27,11 @@ public class HilmaOptions
     public string SubscriptionKeyHeader { get; set; } = "Ocp-Apim-Subscription-Key";
 
     /// <summary>
-    /// Relative path of the search endpoint.
-    /// TODO: still unverified — the Read API's OpenAPI document contains no search operation, so
-    /// this belongs to the separate Search API and its base URL may differ from <see cref="BaseUrl"/>.
+    /// Relative path of the search endpoint. The eForms index is the current one and covers both
+    /// eForms and non-eForms notices; <c>/notices/docs/search</c> is deprecated and has indexed
+    /// nothing since 2023-09-01.
     /// </summary>
-    public string SearchPath { get; set; } = "notices";
+    public string SearchPath { get; set; } = "eformnotices/docs/search";
 
     /// <summary>
     /// Relative path template of the detail endpoint; <c>{id}</c> is substituted.
@@ -34,9 +39,9 @@ public class HilmaOptions
     /// </summary>
     public string NoticeDetailPath { get; set; } = "api/avp/notices/{id}";
 
-    /// <summary>Page size requested from the search endpoint.</summary>
-    [Range(1, 500)]
-    public int PageSize { get; set; } = 100;
+    /// <summary>Page size requested from the search endpoint. Azure Cognitive Search caps `top` at 1000.</summary>
+    [Range(1, 1000)]
+    public int PageSize { get; set; } = 200;
 
     /// <summary>Requests permitted per <see cref="RateLimitWindow"/>. Tune once the published limits are known.</summary>
     [Range(1, 1000)]

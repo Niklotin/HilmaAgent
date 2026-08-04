@@ -32,7 +32,8 @@ public static class InfrastructureServiceCollectionExtensions
         {
             var hilma = provider.GetRequiredService<IOptions<HilmaOptions>>().Value;
 
-            http.BaseAddress = new Uri(hilma.BaseUrl.TrimEnd('/') + "/");
+            // No BaseAddress: search and read live on different base URLs, so the client builds
+            // absolute URIs from options instead.
             http.Timeout = hilma.RequestTimeout;
             if (!string.IsNullOrWhiteSpace(hilma.SubscriptionKey))
                 http.DefaultRequestHeaders.Add(hilma.SubscriptionKeyHeader, hilma.SubscriptionKey);

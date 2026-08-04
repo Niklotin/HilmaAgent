@@ -1,12 +1,20 @@
 namespace HilmaAgent.Core.Notices;
 
-/// <summary>
-/// A hit from the Hilma search endpoint. The search endpoint returns identifiers only —
-/// full content has to be fetched one notice at a time.
-/// </summary>
-/// <param name="NoticeId">Identifier to pass to the detail endpoint.</param>
-/// <param name="PublicationDate">Used to advance the ingestion checkpoint. Null if the search payload does not carry it.</param>
-public readonly record struct HilmaNoticeRef(string NoticeId, DateTimeOffset? PublicationDate);
+/// <summary>A hit from the Hilma search index.</summary>
+/// <param name="SearchId">Index key: <c>EF-52662</c> (eForms), <c>OLD-160524</c> (legacy), <c>PLAN-1263</c> (procurement plan).</param>
+/// <param name="NoticeId">Identifier for the Read API detail endpoint. Zero for plans, which have no underlying notice.</param>
+/// <param name="IsEForms">eForms notices are not served by the legacy Read API — see the README.</param>
+/// <param name="PublicationDate">Drives the ingestion checkpoint.</param>
+/// <param name="Document">
+/// The raw search hit. Unlike a bare identifier list this already carries title, buyer, CPV, NUTS,
+/// value and deadline, so it is worth keeping rather than discarding after the id is read.
+/// </param>
+public sealed record HilmaNoticeRef(
+    string SearchId,
+    int NoticeId,
+    bool IsEForms,
+    DateTimeOffset? PublicationDate,
+    string Document);
 
 /// <summary>Raw detail response for a single notice. Nothing is parsed at this layer.</summary>
 /// <param name="NoticeId">Identifier the document was fetched with.</param>
@@ -17,11 +25,15 @@ public sealed record HilmaNoticeDocument(string NoticeId, string RawJson, DateTi
 public interface IHilmaClient
 {
     /// <summary>
-    /// Enumerates notice identifiers published on or after <paramref name="publishedAfter"/>,
-    /// paging through the search endpoint as the caller consumes results.
+    /// Enumerates search hits published after <paramref name="publishedAfter"/>, oldest first,
+    /// paging as the caller consumes results.
     /// </summary>
+    /// <remarks>
+    /// Ascending order matters: the ingestion checkpoint is a high-water mark, and advancing it
+    /// over a partially consumed descending page would skip everything below it.
+    /// </remarks>
     IAsyncEnumerable<HilmaNoticeRef> SearchAsync(DateTimeOffset publishedAfter, CancellationToken ct = default);
 
-    /// <summary>Fetches one notice. Returns null when the API reports it as missing (404).</summary>
+    /// <summary>Fetches one notice from the Read API. Returns null when the API reports it missing (404).</summary>
     Task<HilmaNoticeDocument?> GetNoticeAsync(string noticeId, CancellationToken ct = default);
 }

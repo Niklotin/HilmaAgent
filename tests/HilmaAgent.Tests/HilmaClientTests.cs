@@ -23,7 +23,8 @@ public class HilmaClientTests : IDisposable
         var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
         {
             ["ConnectionStrings:Postgres"] = "Host=localhost;Database=unused;Username=u;Password=p",
-            ["Hilma:BaseUrl"] = _server.Url!,
+            ["Hilma:SearchBaseUrl"] = _server.Url!,
+            ["Hilma:ReadBaseUrl"] = _server.Url!,
             ["Hilma:SubscriptionKey"] = "test-key",
             ["Hilma:PageSize"] = pageSize.ToString(),
             // Keep retries fast; the pipeline's behaviour is what matters, not its wall time.
@@ -40,30 +41,54 @@ public class HilmaClientTests : IDisposable
     }
 
     [Fact]
-    public async Task Search_pages_until_a_short_page_and_yields_identifiers()
+    public async Task Search_pages_on_skip_until_a_short_page()
     {
-        _server.Given(Request.Create().WithPath("/notices").WithParam("page", "0").UsingGet())
+        _server.Given(Request.Create().WithPath("/eformnotices/docs/search")
+                .WithBody(body => body!.Contains("\"skip\":\"0\"")).UsingPost())
             .RespondWith(Response.Create().WithBodyAsJson(new
             {
-                notices = new[]
+                value = new object[]
                 {
-                    new { noticeId = "n-1", publicationDate = "2026-07-01T00:00:00Z" },
-                    new { noticeId = "n-2", publicationDate = "2026-07-02T00:00:00Z" },
+                    new { id = "EF-1", noticeId = 1, isEForms = true, datePublished = "2026-07-01T00:00:00Z" },
+                    new { id = "OLD-2", noticeId = 2, isEForms = false, datePublished = "2026-07-02T00:00:00Z" },
                 },
             }));
 
-        _server.Given(Request.Create().WithPath("/notices").WithParam("page", "1").UsingGet())
+        _server.Given(Request.Create().WithPath("/eformnotices/docs/search")
+                .WithBody(body => body!.Contains("\"skip\":\"2\"")).UsingPost())
             .RespondWith(Response.Create().WithBodyAsJson(new
             {
-                notices = new[] { new { noticeId = "n-3", publicationDate = "2026-07-03T00:00:00Z" } },
+                value = new object[]
+                {
+                    new { id = "EF-3", noticeId = 3, isEForms = true, datePublished = "2026-07-03T00:00:00Z" },
+                },
             }));
 
         var refs = new List<HilmaNoticeRef>();
         await foreach (var reference in CreateClient().SearchAsync(new DateTimeOffset(2026, 6, 1, 0, 0, 0, TimeSpan.Zero)))
             refs.Add(reference);
 
-        refs.Select(r => r.NoticeId).ShouldBe(["n-1", "n-2", "n-3"]);
+        refs.Select(r => r.SearchId).ShouldBe(["EF-1", "OLD-2", "EF-3"]);
+        refs.Select(r => r.NoticeId).ShouldBe([1, 2, 3]);
+        refs[0].IsEForms.ShouldBeTrue();
+        refs[1].IsEForms.ShouldBeFalse();
         refs[0].PublicationDate.ShouldBe(new DateTimeOffset(2026, 7, 1, 0, 0, 0, TimeSpan.Zero));
+    }
+
+    [Fact]
+    public async Task Search_asks_for_ascending_order_and_excludes_plans()
+    {
+        _server.Given(Request.Create().WithPath("/eformnotices/docs/search").UsingPost())
+            .RespondWith(Response.Create().WithBodyAsJson(new { value = Array.Empty<object>() }));
+
+        await foreach (var _ in CreateClient().SearchAsync(new DateTimeOffset(2026, 6, 1, 0, 0, 0, TimeSpan.Zero))) { }
+
+        var body = _server.LogEntries.Single().RequestMessage.Body!;
+        // Ascending order is load-bearing: the checkpoint is a high-water mark, so a descending
+        // page that is only partly consumed would strand everything below it.
+        body.ShouldContain("datePublished asc");
+        body.ShouldContain("isPlan eq false");
+        body.ShouldContain("datePublished gt 2026-06-01");
     }
 
     [Fact]

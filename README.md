@@ -18,16 +18,16 @@ the deterministic score, the disagreement is surfaced rather than silently resol
 
 | Phase | Scope | State |
 |---|---|---|
-| 1 | Ingestion — Hilma client, Postgres, incremental worker | detail path + parser verified against the API spec; **blocked on the search endpoint** |
+| 1 | Ingestion — Hilma client, Postgres, incremental worker | **runs against the live API**; covers legacy notices only (~3% of current publications) |
 | 2 | Retrieval — chunking, embeddings, Qdrant | not started |
 | 3 | Agent — Semantic Kernel plugins, assessments | not started |
 | 4 | React approval queue | not started |
 | 5 | README polish, metrics | not started |
 
-**Phase 1 is not done.** The pipeline builds, is tested end-to-end against a stubbed API, and
-migrates a real Postgres. The detail endpoint and the parser are now verified against the published
-OpenAPI document — but no live notice has been ingested, because the *search* endpoint is still
-unconfirmed and search is the only way to discover notice identifiers. See *Before this is real*.
+**Phase 1 works end to end but is not finished.** `docker compose up` on a clean volume migrates
+Postgres, searches the live index, fetches notice detail under a rate limiter, and stores real
+Finnish procurement notices with the checkpoint advancing correctly. What it does not yet do is
+reach eForms notices, which are 97% of current publications — see *Coverage* below.
 
 ## Stack
 
@@ -96,19 +96,24 @@ notice is not.
 to zero would quietly poison Phase 3's value-band scoring, so absent and genuinely-zero remain
 distinguishable.
 
-## Notice format: one contract, not two
+## The two id spaces (read this before touching ingestion)
 
-The original plan treated "legacy vs eForms" as a decision to make. Reading the Read API's OpenAPI
-document dissolved it: **a single `NoticeContract` serves all three families.** Its `type`
-discriminator spans legacy TED F-forms (`Contract` = F02_2014), Finnish national notices
-(`NationalContract`, `NationalSmallValueProcurement`), and eForms (`EForms4` … `EFormsE6`) — 83
-values in one enum.
+`noticeId` is **not unique**. The search index contains both `EF-52994` (an eForms notice published
+2026-07-05) and `OLD-52994` (a legacy notice from 2020-09-30) — same number, unrelated notices. Ask
+the legacy Read API for `52994` and it returns the 2020 one, with a 200 and no indication anything
+is wrong.
 
-So there is one parser, and `type` tells you what you're looking at. No format flag, no dual code
-path. The enum maps in `HilmaEnums.cs` are generated from the spec rather than transcribed, since
-83 hand-copied integer mappings is 83 chances to introduce a silent error.
+So:
 
-Two consequences worth knowing:
+- **The key is the search `id`** (`EF-…` / `OLD-…` / `PLAN-…`), never the bare `noticeId`.
+- **Detail is only fetched for non-eForms hits.** For an eForms hit the number would resolve to
+  whichever legacy notice happens to share it. A wrong notice stored under a right-looking id is
+  worse than a missing one, so the code refuses to ask.
+
+This was found by running against live data — it does not show up against the spec, and both of the
+first two ingestion runs looked successful while storing 2020 notices under a 2026 filter.
+
+Two other consequences of the real contract:
 
 - **Enums arrive as bare integers.** `type: 200` and `contractingAuthorityType: 2` mean nothing
   without the map, so both the code and the resolved name are stored. An unrecognised code keeps the
@@ -117,6 +122,20 @@ Two consequences worth knowing:
   and the buyer can withhold it outright. All four states are preserved (`EstimatedValue`,
   `…Min`/`…Max`, `…Withheld`), because Phase 3's value-band scoring is only honest if
   "€50k–250k", "exactly €120k", "withheld", and "not stated" stay distinguishable.
+
+## Coverage: what actually gets ingested today
+
+The two APIs we have keys and specs for cover the **legacy** family only. Measured against the live
+index for the 90 days to 2026-08-04:
+
+| | notices |
+|---|---|
+| published in the last 90 days | 5,389 |
+| of those, eForms | 5,231 (97%) |
+| of those, legacy (ingestible today) | 103 non-plan |
+
+A live run ingests correctly and stores real notices — and reaches 3% of current publications. The
+missing 97% needs the **Read API (eForms)** product, the third one on the developer portal.
 
 ## Open decisions
 
@@ -133,14 +152,15 @@ turns out to be worth the demo value).
 2. ~~Verify the detail endpoint and field names~~ — done, against the Read API OpenAPI document.
    Base URL `https://api.hankintailmoitukset.fi/avp-notice`, detail path `api/avp/notices/{noticeId}`,
    key in the `Ocp-Apim-Subscription-Key` header. `noticeId` is an int32; the column stores it as text.
-3. **The search endpoint is still unverified.** The Read API's spec contains no search operation —
-   it belongs to the separate Search API, whose base URL may differ. `Hilma:SearchPath` and the
-   paging parameters in `HilmaClient.SearchAsync` remain guesses, marked `TODO`. **Ingestion cannot
-   run until this is resolved**, since search is the only way to discover identifiers.
-4. Add a real Finnish notice to `tests/Fixtures` once ingestion runs. The current fixture is the
-   vendor's own example — authoritative on shape, synthetic in its values, and it omits
-   `datePublished` entirely.
-5. Tune `Hilma:RequestsPerWindow` to the API's actual published limit.
+3. ~~Verify the search endpoint~~ — done. It is an Azure Cognitive Search passthrough on a
+   *different* base URL (`/avp`, not `/avp-notice`): `POST eformnotices/docs/search` with
+   `search`/`filter`/`orderby`/`top`/`skip`. `/notices/docs/search` is deprecated and has indexed
+   nothing since 2023-09-01.
+4. **Subscribe to the eForms Read API** and wire a second detail client. Without it, coverage stays
+   at ~3% of current notices.
+5. Add a real Finnish notice to `tests/Fixtures`. The current fixture is the vendor's own example —
+   authoritative on shape, synthetic in its values, and it omits `datePublished` entirely.
+6. Tune `Hilma:RequestsPerWindow` to the API's actual published limit.
 
 ## Not yet used
 
