@@ -1,0 +1,19 @@
+@host = http://localhost:5080
+
+### Ingestion health — run this first after `docker compose up`
+GET {{host}}/api/notices/stats
+
+### List the most recently published notices
+GET {{host}}/api/notices?take=20
+
+### Only notices whose submission deadline is still open
+GET {{host}}/api/notices?openOnly=true&take=20
+
+### Filter by CPV code (software services)
+GET {{host}}/api/notices?cpv=72000000&take=20
+
+### Single notice, including the raw payload
+GET {{host}}/api/notices/REPLACE_WITH_A_REAL_ID
+
+### OpenAPI document (development only)
+GET {{host}}/openapi/v1.json

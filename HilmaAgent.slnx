@@ -1,0 +1,18 @@
+<Solution>
+  <Folder Name="/src/" />
+  <Folder Name="/src/Api/">
+    <Project Path="src/Api/HilmaAgent.Api.csproj" />
+  </Folder>
+  <Folder Name="/src/Core/">
+    <Project Path="src/Core/HilmaAgent.Core.csproj" />
+  </Folder>
+  <Folder Name="/src/Infrastructure/">
+    <Project Path="src/Infrastructure/HilmaAgent.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/Worker/">
+    <Project Path="src/Worker/HilmaAgent.Worker.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/HilmaAgent.Tests/HilmaAgent.Tests.csproj" />
+  </Folder>
+</Solution>

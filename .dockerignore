@@ -1,0 +1,9 @@
+**/bin/
+**/obj/
+**/node_modules/
+**/.vs/
+**/.vscode/
+**/.idea/
+.git/
+.env
+web/dist/

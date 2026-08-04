@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk.Worker">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>dotnet-HilmaAgent.Worker-c71b6902-bb24-4ec6-95dd-e25a3d2dcc0a</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Core\HilmaAgent.Core.csproj" />
+    <ProjectReference Include="..\Infrastructure\HilmaAgent.Infrastructure.csproj" />
+  </ItemGroup>
+</Project>

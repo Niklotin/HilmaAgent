@@ -1,0 +1,56 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: hilma
+      POSTGRES_USER: hilma
+      POSTGRES_PASSWORD: hilma
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hilma -d hilma"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # Not used until Phase 2 (retrieval), but kept in the compose file so the stack is complete.
+  qdrant:
+    image: qdrant/qdrant:latest
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant-data:/qdrant/storage
+
+  worker:
+    build:
+      context: .
+      dockerfile: src/Worker/Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      ConnectionStrings__Postgres: "Host=postgres;Port=5432;Database=hilma;Username=hilma;Password=hilma"
+      # Supply the APIM subscription key via .env — never commit it.
+      Hilma__SubscriptionKey: "${HILMA_SUBSCRIPTION_KEY}"
+    restart: unless-stopped
+
+  api:
+    build:
+      context: .
+      dockerfile: src/Api/Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__Postgres: "Host=postgres;Port=5432;Database=hilma;Username=hilma;Password=hilma"
+      Hilma__SubscriptionKey: "${HILMA_SUBSCRIPTION_KEY}"
+    ports:
+      - "5080:8080"
+
+volumes:
+  postgres-data:
+  qdrant-data:

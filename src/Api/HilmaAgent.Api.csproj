@@ -1,0 +1,26 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.10" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.10">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <!-- Pinned forward off the transitive 2.0.0. The advisory (GHSA-v5pm-xwqc-g5wc) is only fixed
+         in 3.x, which the Microsoft.AspNetCore.OpenApi 10.0.10 source generator cannot compile
+         against yet; revisit when ASP.NET Core ships a 3.x-compatible release. -->
+    <PackageReference Include="Microsoft.OpenApi" Version="2.4.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Core\HilmaAgent.Core.csproj" />
+    <ProjectReference Include="..\Infrastructure\HilmaAgent.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>

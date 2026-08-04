@@ -1,0 +1,16 @@
+{
+  "noticeId": "2026-123456",
+  "noticeType": "CONTRACT",
+  "title": "Ohjelmistokehityksen asiantuntijapalvelut",
+  "organisationName": "Helsingin kaupunki",
+  "organisationType": "REGIONAL_AUTHORITY",
+  "cpvCodes": ["72000000", "72200000"],
+  "estimatedValue": 450000.0,
+  "currency": "EUR",
+  "publicationDate": "2026-07-14T09:00:00Z",
+  "submissionDeadline": "2026-09-01T12:00:00Z",
+  "region": "FI1B1",
+  "descriptions": {
+    "fi": "Hankinnan kohteena on ohjelmistokehityksen asiantuntijapalvelut."
+  }
+}
