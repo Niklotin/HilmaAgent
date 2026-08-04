@@ -1,4 +1,5 @@
 using HilmaAgent.Infrastructure.Ingestion;
+using HilmaAgent.Infrastructure.Retrieval;
 using Microsoft.Extensions.Options;
 
 namespace HilmaAgent.Worker;
@@ -16,6 +17,15 @@ public class IngestionWorkerOptions
     public int MaxNoticesPerRun { get; set; } = 100;
 
     public bool Enabled { get; set; } = true;
+
+    /// <summary>
+    /// Chunk and embed newly ingested notices in the same pass. Turn off to ingest without an
+    /// embedding provider configured.
+    /// </summary>
+    public bool IndexAfterIngestion { get; set; } = true;
+
+    /// <summary>Cap on notices indexed per pass. Embedding is billed per token, so this is a cost lever.</summary>
+    public int MaxNoticesIndexedPerRun { get; set; } = 200;
 }
 
 public class IngestionWorker(
@@ -59,6 +69,26 @@ public class IngestionWorker(
             {
                 // Keep the schedule alive: a failed pass resumes from the same checkpoint next tick.
                 logger.LogError(ex, "Ingestion pass failed; retrying at the next interval.");
+            }
+
+            if (_options.IndexAfterIngestion)
+            {
+                try
+                {
+                    await using var scope = scopeFactory.CreateAsyncScope();
+                    var indexing = scope.ServiceProvider.GetRequiredService<NoticeIndexingService>();
+                    await indexing.RunAsync(_options.MaxNoticesIndexedPerRun, stoppingToken);
+                }
+                catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+                {
+                    return;
+                }
+                catch (Exception ex)
+                {
+                    // Indexing failing must not stop ingestion: notices already in Postgres are the
+                    // durable asset, and un-indexed ones are picked up on the next pass.
+                    logger.LogError(ex, "Indexing pass failed; notices remain ingested and will be indexed later.");
+                }
             }
 
             try

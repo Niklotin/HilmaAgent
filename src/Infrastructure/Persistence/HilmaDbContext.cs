@@ -7,6 +7,7 @@ namespace HilmaAgent.Infrastructure.Persistence;
 public class HilmaDbContext(DbContextOptions<HilmaDbContext> options) : DbContext(options)
 {
     public DbSet<Notice> Notices => Set<Notice>();
+    public DbSet<NoticeChunk> NoticeChunks => Set<NoticeChunk>();
     public DbSet<IngestionCheckpoint> IngestionCheckpoints => Set<IngestionCheckpoint>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -32,6 +33,24 @@ public class HilmaDbContext(DbContextOptions<HilmaDbContext> options) : DbContex
             notice.HasIndex(n => n.SubmissionDeadline);
             notice.HasIndex(n => n.CpvCodes).HasMethod("gin");
             notice.HasIndex(n => n.Region).HasMethod("gin");
+        });
+
+        modelBuilder.Entity<NoticeChunk>(chunk =>
+        {
+            chunk.HasKey(c => c.Id);
+            chunk.Property(c => c.NoticeId).HasMaxLength(128);
+            chunk.Property(c => c.Section).HasMaxLength(32);
+            chunk.Property(c => c.LotId).HasMaxLength(64);
+            chunk.Property(c => c.EmbeddingModel).HasMaxLength(128);
+
+            chunk.HasOne(c => c.Notice)
+                .WithMany()
+                .HasForeignKey(c => c.NoticeId)
+                // Chunks are derived data; a deleted notice must not leave them behind.
+                .OnDelete(DeleteBehavior.Cascade);
+
+            chunk.HasIndex(c => c.NoticeId);
+            chunk.HasIndex(c => c.EmbeddingModel);
         });
 
         modelBuilder.Entity<IngestionCheckpoint>(checkpoint =>

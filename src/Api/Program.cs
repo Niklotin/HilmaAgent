@@ -20,6 +20,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.MapNoticeEndpoints();
+app.MapSearchEndpoints();
 
 app.Run();
 

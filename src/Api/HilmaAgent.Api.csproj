@@ -19,6 +19,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Update, not Include: the Web SDK already globs *.json as Content. -->
+    <Content Update="eval-queries.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\Core\HilmaAgent.Core.csproj" />
     <ProjectReference Include="..\Infrastructure\HilmaAgent.Infrastructure.csproj" />
   </ItemGroup>

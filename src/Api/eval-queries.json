@@ -1,0 +1,50 @@
+[
+  {
+    "query": "ohjelmistokehityksen asiantuntijapalvelut",
+    "expectedCpvPrefixes": ["72"]
+  },
+  {
+    "query": "tietojärjestelmän hankinta ja ylläpito",
+    "expectedCpvPrefixes": ["72", "48"]
+  },
+  {
+    "query": "tekoälyratkaisut ja data-analytiikka",
+    "expectedCpvPrefixes": ["72", "73"]
+  },
+  {
+    "query": "rakennusurakka ja korjaustyöt",
+    "expectedCpvPrefixes": ["45"]
+  },
+  {
+    "query": "arkkitehti- ja suunnittelupalvelut",
+    "expectedCpvPrefixes": ["71"]
+  },
+  {
+    "query": "terveydenhuollon laitteet ja tarvikkeet",
+    "expectedCpvPrefixes": ["33"]
+  },
+  {
+    "query": "henkilökuljetukset ja joukkoliikenne",
+    "expectedCpvPrefixes": ["60"]
+  },
+  {
+    "query": "siivouspalvelut ja kiinteistönhoito",
+    "expectedCpvPrefixes": ["90", "70", "79"]
+  },
+  {
+    "query": "koulutus- ja valmennuspalvelut",
+    "expectedCpvPrefixes": ["80"]
+  },
+  {
+    "query": "sähköverkon rakentaminen ja kunnossapito",
+    "expectedCpvPrefixes": ["45", "31", "09"]
+  },
+  {
+    "query": "konsultointi ja liikkeenjohdon palvelut",
+    "expectedCpvPrefixes": ["79", "73"]
+  },
+  {
+    "query": "elintarvikkeet ja ateriapalvelut",
+    "expectedCpvPrefixes": ["15", "55"]
+  }
+]

@@ -19,7 +19,7 @@ the deterministic score, the disagreement is surfaced rather than silently resol
 | Phase | Scope | State |
 |---|---|---|
 | 1 | Ingestion — Hilma client, Postgres, incremental worker | **done** — runs against the live API, both notice families |
-| 2 | Retrieval — chunking, embeddings, Qdrant | not started |
+| 2 | Retrieval — chunking, embeddings, Qdrant | built and running; **retrieval quality not yet measured** (needs an Azure OpenAI key) |
 | 3 | Agent — Semantic Kernel plugins, assessments | not started |
 | 4 | React approval queue | not started |
 | 5 | README polish, metrics | not started |
@@ -159,11 +159,69 @@ than a re-crawl. `GET /api/notices/{id}/eforms.xml` serves it back.
 The batch endpoint is what makes this affordable: 5,231 notices is ~105 requests at 50 per call,
 not 5,231. The handoff's "no bulk download, one fetch per notice" holds for the legacy API only.
 
+## Retrieval (Phase 2)
+
+Notices are chunked, embedded, and indexed in Qdrant; `POST /api/search` returns notices ranked by
+semantic similarity, with the matching passages attached so Phase 3 can cite them.
+
+### Chunking: section-level, along the notice's own boundaries
+
+One chunk for the **screening summary** (title, buyer, CPV, region, value, deadline), one for the
+notice-level **description**, and **one per lot**.
+
+Whole-notice chunking was the alternative, and it fails on exactly the notices that matter. A single
+Finnish procurement notice routinely bundles unrelated lots — road resurfacing in one, IT
+consultancy in another. Averaged into one vector, such a notice matches neither query well. And a
+bidder does not care whether *a notice* fits them; they care whether *a lot* does.
+
+Fixed-size sliding windows were the other alternative. They would cut across the lot boundary — the
+one boundary that carries the meaning. The structure is already in the payload; using it beats
+inferring it back from token offsets. Over-long descriptions are split further, but on paragraph
+then sentence boundaries, never mid-word: a chunk starting mid-sentence embeds badly and reads worse
+as a citation.
+
+The summary chunk deliberately duplicates columns that already exist in Postgres. A semantic hit has
+to be legible on its own when shown as a citation, without a second lookup. Its labels are Finnish
+because the corpus and the queries are Finnish — keeping the embedded text in one language rather
+than straddling two.
+
+### Embeddings: Azure OpenAI `text-embedding-3-large`
+
+**Anthropic has no embeddings endpoint** — the Claude API is Messages, Batches, Files, Token
+Counting, and Models. So the embedding provider is necessarily a different vendor from the model
+that will write the Phase 3 narrative, and "Azure OpenAI vs Claude" was never a real choice here.
+
+The binding constraint is Finnish. That rules out English-only models and makes multilingual quality
+the deciding factor; `text-embedding-3-large` handles Finnish well, and Azure exposure is worth
+something on a CV.
+
+A deterministic local stand-in (`Embeddings:UseFake=true`) lets the stack run end to end with no key
+— useful for anyone cloning the repo. It matches shared tokens, not meaning, so **the evaluation
+harness refuses to score against it** rather than reporting a number that measures keyword overlap.
+
+### Filters run inside the vector search
+
+CPV, region, and deadline filters are Qdrant payload conditions, not a post-filter over the results.
+Filtering a top-k list after retrieval silently shrinks it — ask for 10 and get 3 — which is a
+reliable way to make good retrieval look bad.
+
+### Evaluation before the LLM
+
+`POST /api/search/evaluate` scores a fixed set of 12 Finnish queries and reports hit@1/@5/@10 and
+MRR. This gate exists because bad retrieval, left unmeasured, gets misdiagnosed as a bad model in
+Phase 3 — at which point you tune prompts against a problem that isn't in the prompt.
+
+Relevance is judged by CPV prefix rather than hand-labelled notice ids. Hand-labelling is more
+precise but has to be redone every time the corpus changes; CPV is the procurement domain's own
+taxonomy, so the judgement survives notices coming and going. `expectedNoticeIds` adds hand-labelling
+on top where a query needs a specific notice.
+
+**No score has been recorded yet** — that needs a real embedding provider. See *Before this is real*.
+
 ## Open decisions
 
-- **LLM provider** — Azure OpenAI vs Claude API. Kept behind an interface either way; not needed
-  until Phase 3.
-- **Chunking strategy** — whole notice vs section-level. Phase 2.
+- **LLM provider for the Phase 3 narrative** — Claude API or Azure OpenAI. Independent of the
+  embedding choice above; the two do not have to be the same vendor.
 
 Settled: plain `BackgroundService` over Hangfire (simpler, no extra schema; swappable if a dashboard
 turns out to be worth the demo value).
@@ -183,6 +241,10 @@ turns out to be worth the demo value).
    authoritative on shape, synthetic in its values, and it omits `datePublished` entirely.
 6. Tune `Hilma:RequestsPerWindow` to the API's actual published limit — 30/min is a guess made
    before any published figure was found.
+7. **Provide an Azure OpenAI embedding deployment and run the retrieval evaluation.** Until then
+   Phase 2 is unmeasured: the pipeline demonstrably works, but nothing says it retrieves *well*.
+   Set `AZURE_OPENAI_ENDPOINT` / `AZURE_OPENAI_API_KEY` in `.env`, re-index, then
+   `POST /api/search/evaluate` and record the numbers here.
 
 ## Known limitations
 
