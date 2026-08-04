@@ -66,6 +66,9 @@ namespace HilmaAgent.Infrastructure.Persistence.Migrations
                         .HasMaxLength(8)
                         .HasColumnType("character varying(8)");
 
+                    b.Property<string>("EFormsXml")
+                        .HasColumnType("text");
+
                     b.Property<decimal?>("EstimatedValue")
                         .HasColumnType("numeric");
 
@@ -109,6 +112,11 @@ namespace HilmaAgent.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasColumnType("text[]");
 
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)");
+
                     b.Property<DateTimeOffset?>("SubmissionDeadline")
                         .HasColumnType("timestamp with time zone");
 
@@ -127,6 +135,8 @@ namespace HilmaAgent.Infrastructure.Persistence.Migrations
                     b.HasIndex("Region");
 
                     NpgsqlIndexBuilderExtensions.HasMethod(b.HasIndex("Region"), "gin");
+
+                    b.HasIndex("Source");
 
                     b.HasIndex("SubmissionDeadline");
 

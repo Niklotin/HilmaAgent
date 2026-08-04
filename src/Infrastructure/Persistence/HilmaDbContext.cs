@@ -25,6 +25,8 @@ public class HilmaDbContext(DbContextOptions<HilmaDbContext> options) : DbContex
             notice.Property(n => n.CpvCodes).HasColumnType("text[]");
             notice.Property(n => n.Region).HasColumnType("text[]");
             notice.Property(n => n.RawPayload).HasColumnType("jsonb");
+            notice.Property(n => n.Source).HasMaxLength(16);
+            notice.HasIndex(n => n.Source);
 
             notice.HasIndex(n => n.PublicationDate);
             notice.HasIndex(n => n.SubmissionDeadline);

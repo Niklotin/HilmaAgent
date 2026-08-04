@@ -48,7 +48,9 @@ namespace HilmaAgent.Infrastructure.Persistence.Migrations
                     Language = table.Column<string>(type: "character varying(8)", maxLength: 8, nullable: true),
                     IsLatest = table.Column<bool>(type: "boolean", nullable: true),
                     IsCancelled = table.Column<bool>(type: "boolean", nullable: true),
+                    Source = table.Column<string>(type: "character varying(16)", maxLength: 16, nullable: false),
                     RawPayload = table.Column<string>(type: "jsonb", nullable: false),
+                    EFormsXml = table.Column<string>(type: "text", nullable: true),
                     FetchedAt = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
                 },
                 constraints: table =>
@@ -72,6 +74,11 @@ namespace HilmaAgent.Infrastructure.Persistence.Migrations
                 table: "Notices",
                 column: "Region")
                 .Annotation("Npgsql:IndexMethod", "gin");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Notices_Source",
+                table: "Notices",
+                column: "Source");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Notices_SubmissionDeadline",

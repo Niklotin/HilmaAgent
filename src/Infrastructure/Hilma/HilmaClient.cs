@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Runtime.CompilerServices;
+using System.Text;
 using System.Text.Json;
 using HilmaAgent.Core.Notices;
 using Microsoft.Extensions.Logging;
@@ -75,6 +76,56 @@ public class HilmaClient(HttpClient http, IOptions<HilmaOptions> options, ILogge
             logger.LogDebug("Search page at skip {Skip} returned {Count} hits.", skip, count);
             if (count < _options.PageSize) yield break;
         }
+    }
+
+    public async Task<IReadOnlyList<HilmaEFormsDocument>> GetEFormsNoticesAsync(
+        IReadOnlyCollection<int> noticeIds,
+        CancellationToken ct = default)
+    {
+        if (noticeIds.Count == 0) return [];
+        if (noticeIds.Count > _options.EFormsBatchSize)
+            throw new ArgumentException($"At most {_options.EFormsBatchSize} ids per request.", nameof(noticeIds));
+
+        var query = string.Join("&", noticeIds.Select(id => $"id={id}"));
+        var url = $"{_options.EFormsBaseUrl.TrimEnd('/')}/{_options.EFormsBatchPath.TrimStart('/')}?{query}";
+
+        using var response = await http.GetAsync(url, ct);
+        response.EnsureSuccessStatusCode();
+
+        using var document = JsonDocument.Parse(await response.Content.ReadAsStringAsync(ct));
+        var fetchedAt = DateTimeOffset.UtcNow;
+        var results = new List<HilmaEFormsDocument>(noticeIds.Count);
+
+        foreach (var item in document.RootElement.EnumerateArray())
+        {
+            if (!item.TryGetProperty("id", out var id) || !id.TryGetInt32(out var noticeId)) continue;
+
+            var encoded = item.TryGetProperty("eForm", out var eForm) ? eForm.GetString() : null;
+            if (string.IsNullOrWhiteSpace(encoded))
+            {
+                logger.LogWarning("eForms notice {NoticeId} came back without content.", noticeId);
+                continue;
+            }
+
+            string xml;
+            try
+            {
+                xml = Encoding.UTF8.GetString(Convert.FromBase64String(encoded));
+            }
+            catch (FormatException ex)
+            {
+                logger.LogError(ex, "eForms notice {NoticeId} had an undecodable payload.", noticeId);
+                continue;
+            }
+
+            results.Add(new HilmaEFormsDocument(noticeId, xml, item.GetRawText(), fetchedAt));
+        }
+
+        // The API silently omits ids it does not know; the caller decides what to do about gaps.
+        if (results.Count != noticeIds.Count)
+            logger.LogWarning("Requested {Requested} eForms notices, received {Received}.", noticeIds.Count, results.Count);
+
+        return results;
     }
 
     public async Task<HilmaNoticeDocument?> GetNoticeAsync(string noticeId, CancellationToken ct = default)

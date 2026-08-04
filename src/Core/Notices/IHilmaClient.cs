@@ -34,6 +34,24 @@ public interface IHilmaClient
     /// </remarks>
     IAsyncEnumerable<HilmaNoticeRef> SearchAsync(DateTimeOffset publishedAfter, CancellationToken ct = default);
 
-    /// <summary>Fetches one notice from the Read API. Returns null when the API reports it missing (404).</summary>
+    /// <summary>Fetches one notice from the legacy Read API. Returns null when the API reports it missing (404).</summary>
     Task<HilmaNoticeDocument?> GetNoticeAsync(string noticeId, CancellationToken ct = default);
+
+    /// <summary>
+    /// Fetches eForms notice content in one request. The API accepts up to 50 ids per call, which is
+    /// what makes ingesting the eForms majority practical under a rate limit.
+    /// </summary>
+    Task<IReadOnlyList<HilmaEFormsDocument>> GetEFormsNoticesAsync(
+        IReadOnlyCollection<int> noticeIds,
+        CancellationToken ct = default);
 }
+
+/// <summary>
+/// An eForms notice as served by the eForms Read API: a thin JSON envelope around the notice itself,
+/// which is base64-encoded UBL XML (see the OP-TED eForms SDK).
+/// </summary>
+/// <param name="NoticeId">Hilma notice id the content was fetched with.</param>
+/// <param name="Xml">Decoded eForms XML. Root element varies by notice kind: ContractNotice, ContractAwardNotice, PriorInformationNotice, …</param>
+/// <param name="Envelope">The JSON envelope verbatim, minus the base64 blob's redundancy.</param>
+/// <param name="FetchedAt">When we retrieved it.</param>
+public sealed record HilmaEFormsDocument(int NoticeId, string Xml, string Envelope, DateTimeOffset FetchedAt);

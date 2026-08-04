@@ -26,6 +26,7 @@ public static class InfrastructureServiceCollectionExtensions
             options.UseNpgsql(configuration.GetConnectionString("Postgres")));
 
         services.AddSingleton<INoticeParser, NoticeContractParser>();
+        services.AddSingleton<SearchIndexNoticeParser>();
         services.AddScoped<NoticeIngestionService>();
 
         services.AddHttpClient<IHilmaClient, HilmaClient>((provider, http) =>

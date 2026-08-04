@@ -48,13 +48,24 @@ public static class NoticeEndpoints
             return notice is null ? Results.NotFound() : Results.Ok(notice);
         })
         .WithName("GetNotice")
-        .WithSummary("Returns a single notice including its raw payload.");
+        .WithSummary("Returns a single notice including its raw payload and, for eForms, its XML.");
+
+        group.MapGet("/{id}/eforms.xml", async (string id, HilmaDbContext db, CancellationToken ct) =>
+        {
+            var xml = await db.Notices.AsNoTracking().Where(n => n.Id == id).Select(n => n.EFormsXml).FirstOrDefaultAsync(ct);
+            return xml is null ? Results.NotFound() : Results.Text(xml, "application/xml");
+        })
+        .WithName("GetNoticeEForms")
+        .WithSummary("Raw eForms UBL XML for a notice, when one was stored.");
 
         group.MapGet("/stats", async (HilmaDbContext db, CancellationToken ct) => Results.Ok(new
         {
             total = await db.Notices.CountAsync(ct),
+            bySource = await db.Notices.GroupBy(n => n.Source)
+                .Select(g => new { source = g.Key, count = g.Count() }).ToListAsync(ct),
             withDeadline = await db.Notices.CountAsync(n => n.SubmissionDeadline != null, ct),
             withEstimatedValue = await db.Notices.CountAsync(n => n.EstimatedValue != null, ct),
+            withEFormsXml = await db.Notices.CountAsync(n => n.EFormsXml != null, ct),
             newestPublication = await db.Notices.MaxAsync(n => (DateTimeOffset?)n.PublicationDate, ct),
             checkpoint = await db.IngestionCheckpoints
                 .Select(c => new { c.Source, c.LastSeenPublicationDate, c.UpdatedAt })

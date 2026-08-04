@@ -18,16 +18,21 @@ the deterministic score, the disagreement is surfaced rather than silently resol
 
 | Phase | Scope | State |
 |---|---|---|
-| 1 | Ingestion — Hilma client, Postgres, incremental worker | **runs against the live API**; covers legacy notices only (~3% of current publications) |
+| 1 | Ingestion — Hilma client, Postgres, incremental worker | **done** — runs against the live API, both notice families |
 | 2 | Retrieval — chunking, embeddings, Qdrant | not started |
 | 3 | Agent — Semantic Kernel plugins, assessments | not started |
 | 4 | React approval queue | not started |
 | 5 | README polish, metrics | not started |
 
-**Phase 1 works end to end but is not finished.** `docker compose up` on a clean volume migrates
-Postgres, searches the live index, fetches notice detail under a rate limiter, and stores real
-Finnish procurement notices with the checkpoint advancing correctly. What it does not yet do is
-reach eForms notices, which are 97% of current publications — see *Coverage* below.
+**Phase 1 is done.** `docker compose up` on a clean volume migrates Postgres, searches the live
+index, fetches content from both read APIs under a rate limiter, and stores real Finnish
+procurement notices with the checkpoint advancing correctly:
+
+```
+Ingestion pass complete: 1 legacy + 99 eForms stored, 0 already known,
+0 failed, 0 without content
+Ingestion checkpoint advanced to 2026-07-07T03:05:04.3590000+00:00
+```
 
 ## Stack
 
@@ -123,19 +128,36 @@ Two other consequences of the real contract:
   `…Min`/`…Max`, `…Withheld`), because Phase 3's value-band scoring is only honest if
   "€50k–250k", "exactly €120k", "withheld", and "not stated" stay distinguishable.
 
-## Coverage: what actually gets ingested today
+## Three APIs, two notice families
 
-The two APIs we have keys and specs for cover the **legacy** family only. Measured against the live
-index for the 90 days to 2026-08-04:
+| API | Base URL | Role |
+|---|---|---|
+| Search | `…/avp` | Azure Cognitive Search index `eformnotices-v2`. Discovery, and the structured fields for eForms notices. |
+| Read | `…/avp-notice` | Legacy notice detail as JSON. 404s on eForms notices. |
+| Read (eForms) | `…/avp-eforms` | eForms notice content as base64 UBL XML. **Batches up to 50 ids per request.** |
 
-| | notices |
-|---|---|
-| published in the last 90 days | 5,389 |
-| of those, eForms | 5,231 (97%) |
-| of those, legacy (ingestible today) | 103 non-plan |
+eForms are ~97% of current publications (5,231 of 5,389 in the 90 days to 2026-08-04), so the
+eForms path is the main one and the legacy path is the tail.
 
-A live run ingests correctly and stores real notices — and reaches 3% of current publications. The
-missing 97% needs the **Read API (eForms)** product, the third one on the developer portal.
+### Where each field comes from, and why
+
+**Legacy notices** are parsed from the Read API's JSON contract — `NoticeContractParser`, field
+paths taken from the OpenAPI document.
+
+**eForms notices** take their structured fields from the **search index**, not from the XML. The
+eForms detail endpoint returns UBL XML whose shape varies by eForms SDK version, and pulling
+BT-coded fields out of it is a sizeable job on its own; meanwhile the index already exposes the same
+fields, flattened and typed. So:
+
+- structured columns ← search index document (already in hand, no extra request)
+- `EFormsXml` ← the batch endpoint, stored whole
+
+The XML is what Phase 2 chunks and what citations will point at, so nothing is lost by not parsing
+it yet — and because the raw payload is always kept, extracting BT fields later is a reparse rather
+than a re-crawl. `GET /api/notices/{id}/eforms.xml` serves it back.
+
+The batch endpoint is what makes this affordable: 5,231 notices is ~105 requests at 50 per call,
+not 5,231. The handoff's "no bulk download, one fetch per notice" holds for the legacy API only.
 
 ## Open decisions
 
@@ -156,11 +178,21 @@ turns out to be worth the demo value).
    *different* base URL (`/avp`, not `/avp-notice`): `POST eformnotices/docs/search` with
    `search`/`filter`/`orderby`/`top`/`skip`. `/notices/docs/search` is deprecated and has indexed
    nothing since 2023-09-01.
-4. **Subscribe to the eForms Read API** and wire a second detail client. Without it, coverage stays
-   at ~3% of current notices.
+4. ~~Wire the eForms Read API~~ — done. Batch endpoint, 50 ids per request.
 5. Add a real Finnish notice to `tests/Fixtures`. The current fixture is the vendor's own example —
    authoritative on shape, synthetic in its values, and it omits `datePublished` entirely.
-6. Tune `Hilma:RequestsPerWindow` to the API's actual published limit.
+6. Tune `Hilma:RequestsPerWindow` to the API's actual published limit — 30/min is a guess made
+   before any published figure was found.
+
+## Known limitations
+
+- **eForms structured fields are only as good as the index.** If the index truncates or omits
+  something, we inherit that. The XML is stored, so the fix is a reparse — but it has not been
+  audited field by field against the XML.
+- **`Language` and `IsLatest` are null for eForms notices.** The index has no equivalent columns.
+  Supersession is partly visible through `isCorrigendum`.
+- **Procurement plans are excluded** (`isPlan eq false`). They carry `noticeId` 0 and are a
+  different contract; screening them is out of scope.
 
 ## Not yet used
 

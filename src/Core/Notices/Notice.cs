@@ -54,8 +54,33 @@ public class Notice
 
     public bool? IsCancelled { get; set; }
 
-    /// <summary>Untouched API response, stored as jsonb.</summary>
+    /// <summary>Which API the structured fields above were derived from — see <see cref="NoticeSource"/>.</summary>
+    public required string Source { get; set; }
+
+    /// <summary>
+    /// Untouched API response the structured fields came from, stored as jsonb: the legacy Read API's
+    /// notice contract, or the search index document for eForms notices.
+    /// </summary>
     public required string RawPayload { get; set; }
 
+    /// <summary>
+    /// Decoded eForms UBL XML, for eForms notices only. This is the authoritative full text and the
+    /// intended source for Phase 2 chunking and citations.
+    /// </summary>
+    public string? EFormsXml { get; set; }
+
     public DateTimeOffset FetchedAt { get; set; }
+}
+
+public static class NoticeSource
+{
+    /// <summary>Structured fields parsed from the legacy Read API's notice contract.</summary>
+    public const string Legacy = "legacy";
+
+    /// <summary>
+    /// Structured fields taken from the search index, with the eForms XML stored alongside.
+    /// The index carries the same fields the legacy contract does, so this avoids a UBL parser
+    /// while still keeping the full notice — see the README.
+    /// </summary>
+    public const string EForms = "eforms";
 }

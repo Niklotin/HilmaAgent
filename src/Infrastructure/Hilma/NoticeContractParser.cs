@@ -43,6 +43,7 @@ public class NoticeContractParser : INoticeParser
             Language = Str(root, "language"),
             IsLatest = Bool(root, "isLatest"),
             IsCancelled = Bool(root, "isCancelled"),
+            Source = NoticeSource.Legacy,
             RawPayload = document.RawJson,
             FetchedAt = document.FetchedAt,
         };

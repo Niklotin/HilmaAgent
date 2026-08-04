@@ -13,9 +13,20 @@ public class HilmaOptions
     [Required]
     public string SearchBaseUrl { get; set; } = "https://api.hankintailmoitukset.fi/avp";
 
-    /// <summary>Base address of the Read API (notice detail).</summary>
+    /// <summary>Base address of the legacy Read API (notice detail as JSON).</summary>
     [Required]
     public string ReadBaseUrl { get; set; } = "https://api.hankintailmoitukset.fi/avp-notice";
+
+    /// <summary>Base address of the eForms Read API (notice content as base64 UBL XML).</summary>
+    [Required]
+    public string EFormsBaseUrl { get; set; } = "https://api.hankintailmoitukset.fi/avp-eforms";
+
+    /// <summary>Batch detail path for eForms notices; ids are appended as repeated <c>id</c> query parameters.</summary>
+    public string EFormsBatchPath { get; set; } = "external-read/v1/notices";
+
+    /// <summary>Ids per batch request. The API rejects more than 50.</summary>
+    [Range(1, 50)]
+    public int EFormsBatchSize { get; set; } = 50;
 
     /// <summary>
     /// APIM subscription key. Kept in user-secrets locally, environment variables elsewhere.
