@@ -40,6 +40,7 @@
       # 'fake' runs the stack without an Azure key; vectors become meaningless, so
       # retrieval quality cannot be evaluated in that mode.
       Embeddings__Provider: "${EMBEDDINGS_PROVIDER:-azure}"
+      Gemini__ApiKey: "${GEMINI_API_KEY}"
     restart: unless-stopped
 
   api:
@@ -57,10 +58,12 @@
       Embeddings__Endpoint: "${AZURE_OPENAI_ENDPOINT}"
       Embeddings__ApiKey: "${AZURE_OPENAI_API_KEY}"
       Embeddings__Provider: "${EMBEDDINGS_PROVIDER:-azure}"
+      Gemini__ApiKey: "${GEMINI_API_KEY}"
     ports:
       - "5080:8080"
 
 volumes:
   postgres-data:
   qdrant-data:
+
 

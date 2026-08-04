@@ -1,5 +1,7 @@
+using HilmaAgent.Core.Assessments;
 using HilmaAgent.Core.Ingestion;
 using HilmaAgent.Core.Notices;
+using HilmaAgent.Core.Profiles;
 using Microsoft.EntityFrameworkCore;
 
 namespace HilmaAgent.Infrastructure.Persistence;
@@ -8,6 +10,8 @@ public class HilmaDbContext(DbContextOptions<HilmaDbContext> options) : DbContex
 {
     public DbSet<Notice> Notices => Set<Notice>();
     public DbSet<NoticeChunk> NoticeChunks => Set<NoticeChunk>();
+    public DbSet<CompanyProfile> CompanyProfiles => Set<CompanyProfile>();
+    public DbSet<FitAssessment> FitAssessments => Set<FitAssessment>();
     public DbSet<IngestionCheckpoint> IngestionCheckpoints => Set<IngestionCheckpoint>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -51,6 +55,36 @@ public class HilmaDbContext(DbContextOptions<HilmaDbContext> options) : DbContex
 
             chunk.HasIndex(c => c.NoticeId);
             chunk.HasIndex(c => c.EmbeddingModel);
+        });
+
+        modelBuilder.Entity<CompanyProfile>(profile =>
+        {
+            profile.HasKey(p => p.Id);
+            profile.Property(p => p.Name).HasMaxLength(256);
+            profile.Property(p => p.Technologies).HasColumnType("text[]");
+            profile.Property(p => p.ReferenceProjects).HasColumnType("text[]");
+            profile.Property(p => p.PreferredCpvCodes).HasColumnType("text[]");
+            profile.Property(p => p.Regions).HasColumnType("text[]");
+        });
+
+        modelBuilder.Entity<FitAssessment>(assessment =>
+        {
+            assessment.HasKey(a => a.Id);
+            assessment.Property(a => a.NoticeId).HasMaxLength(128);
+            assessment.Property(a => a.ScoreRecommendation).HasMaxLength(16);
+            assessment.Property(a => a.ModelRecommendation).HasMaxLength(16);
+            assessment.Property(a => a.ModelId).HasMaxLength(128);
+            assessment.Property(a => a.ScoreBreakdownJson).HasColumnType("jsonb");
+
+            // Citations are an owned collection serialised into the row: they are meaningless apart
+            // from their assessment and are never queried independently.
+            assessment.OwnsMany(a => a.Citations, citations => citations.ToJson());
+
+            assessment.HasOne(a => a.Notice).WithMany().HasForeignKey(a => a.NoticeId).OnDelete(DeleteBehavior.Cascade);
+            assessment.HasOne(a => a.Profile).WithMany().HasForeignKey(a => a.ProfileId).OnDelete(DeleteBehavior.Cascade);
+
+            assessment.HasIndex(a => a.NoticeId);
+            assessment.HasIndex(a => a.CreatedAt);
         });
 
         modelBuilder.Entity<IngestionCheckpoint>(checkpoint =>

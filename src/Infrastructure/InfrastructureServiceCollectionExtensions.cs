@@ -2,7 +2,9 @@ using System.Net;
 using System.Threading.RateLimiting;
 using HilmaAgent.Core.Notices;
 using HilmaAgent.Infrastructure.Hilma;
+using HilmaAgent.Core.Assessments;
 using HilmaAgent.Core.Retrieval;
+using HilmaAgent.Infrastructure.Assessments;
 using HilmaAgent.Infrastructure.Ingestion;
 using HilmaAgent.Infrastructure.Persistence;
 using HilmaAgent.Infrastructure.Retrieval;
@@ -33,6 +35,7 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddScoped<NoticeIngestionService>();
 
         AddRetrieval(services, configuration);
+        AddAssessments(services, configuration);
 
         services.AddHttpClient<IHilmaClient, HilmaClient>((provider, http) =>
         {
@@ -114,6 +117,26 @@ public static class InfrastructureServiceCollectionExtensions
         services.AddScoped<NoticeIndexingService>();
         services.AddScoped<NoticeSearchService>();
         services.AddScoped<RetrievalEvaluator>();
+    }
+
+    /// <summary>Phase 3: deterministic scoring, and the model that narrates it.</summary>
+    private static void AddAssessments(IServiceCollection services, IConfiguration configuration)
+    {
+        services.AddOptions<GeminiOptions>()
+            .Bind(configuration.GetSection(GeminiOptions.SectionName))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+
+        // No dependencies beyond a clock — the scorer is a pure function and registered as such.
+        services.AddSingleton(_ => new FitScorer());
+
+        services.AddHttpClient<IAssessmentNarrator, GeminiAssessmentNarrator>((provider, http) =>
+        {
+            var gemini = provider.GetRequiredService<IOptions<GeminiOptions>>().Value;
+            http.Timeout = gemini.RequestTimeout;
+        });
+
+        services.AddScoped<AssessmentService>();
     }
 
     private static bool IsTransient(HttpStatusCode status) =>

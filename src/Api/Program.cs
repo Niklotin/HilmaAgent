@@ -21,6 +21,7 @@ if (app.Environment.IsDevelopment())
 
 app.MapNoticeEndpoints();
 app.MapSearchEndpoints();
+app.MapAssessmentEndpoints();
 
 app.Run();
 

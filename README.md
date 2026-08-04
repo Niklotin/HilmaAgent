@@ -20,7 +20,7 @@ the deterministic score, the disagreement is surfaced rather than silently resol
 |---|---|---|
 | 1 | Ingestion — Hilma client, Postgres, incremental worker | **done** — runs against the live API, both notice families |
 | 2 | Retrieval — chunking, embeddings, Qdrant | **done** — measured: hit@5 100%, MRR 0.875 over 300 notices |
-| 3 | Agent — Semantic Kernel plugins, assessments | not started |
+| 3 | Agent — deterministic scoring + LLM narration, assessments | **working end to end** against live notices |
 | 4 | React approval queue | not started |
 | 5 | README polish, metrics | not started |
 
@@ -250,10 +250,71 @@ so hit@5 of 100% says the pipeline works end to end, not that retrieval is solve
 a larger corpus with narrower queries — and `relevantInTop10` is bounded by what exists:
 *"koulutus- ja valmennuspalvelut"* scores 2/10 mainly because this corpus holds few training notices.
 
+## Assessment (Phase 3)
+
+`POST /api/assess/{noticeId}` scores a notice in code, then asks a model to justify that score and
+pick GO / NO-GO / INVESTIGATE. `GET /api/assess/{noticeId}/stream` does the same over SSE.
+
+### The order is the architecture
+
+Scoring happens **before** retrieval and **before** the model is called, so the number cannot be
+influenced by what the model saw or said. `FitScorer` is a pure function of *(notice, profile, clock)*
+— the same inputs always give the same score, and a score can be replayed months later.
+
+Points: CPV overlap 45, region 20, value band 20, deadline headroom 15. **Gates** are separate and
+force NO-GO regardless: a passed deadline, a cancelled notice, or a type that announces a result
+rather than opening a tender. A gated notice scores **zero**, not its would-be points — a high number
+beside an unbiddable tender misleads at a glance.
+
+CPV and NUTS are matched hierarchically. Trailing zeros in a CPV code denote breadth, so `72000000`
+(the IT-services division) *contains* `72200000`; comparing raw strings scored that as a weak
+two-digit brush. Likewise a notice in `FI1B1` is fully inside a profile declaring `FI1B`. Both bugs
+were found by a failing test, not by inspection.
+
+### What the model is and isn't allowed to do
+
+It receives a finished `ScoreBreakdown` and a fixed set of passages. It cannot alter the score — the
+interface doesn't expose a way to. Structured output pins the recommendation to one of three enum
+values, and citations come back as chunk **identifiers**, not quotations the model could invent.
+
+**Citations are verified against what the model was actually given**, in the service rather than the
+provider — that is the layer that has to hold whichever narrator is plugged in. Invented identifiers
+are dropped and logged. An unverifiable citation is worse than none, because it looks like evidence.
+
+### Disagreement is surfaced, never resolved
+
+The score's implied recommendation and the model's are both stored, with a flag when they differ.
+`GET /api/assessments?disagreementsOnly=true` lists exactly those.
+
+This is not a hypothetical. The first real assessment run — notice `EF-53464`, a work-safety software
+procurement — scored **78/100 (GO)** on CPV, region and deadline, and the model returned
+**INVESTIGATE**, citing three passages: the buyer wants a ready-made **SaaS product**, while the
+profile describes a **custom development** consultancy. No CPV code distinguishes "buy a product"
+from "build us a system", so the deterministic rules cannot see that distinction — and the model
+could not have overruled the score even if it were wrong to. Both survive; a human decides.
+
+### Model
+
+Google Gemini (`gemini-3.6-flash`), behind `IAssessmentNarrator`. The model is **pinned, not an
+alias** — an assessment records the model that wrote it, and an alias shifting underneath would make
+stored assessments unreproducible. Anthropic has no embeddings endpoint and Gemini does the narration,
+so this project deliberately uses two vendors for two different jobs.
+
+### The company profile is fictional
+
+**Sammalkoski Digital Oy does not exist.** It was invented for this project rather than modelled on
+a real supplier: the notices are public records, but screening them against a real company's stated
+capabilities and publishing the resulting GO/NO-GO calls would be putting words in someone else's
+mouth. It is drawn as a mid-sized Helsinki consultancy doing public-sector .NET and Azure work —
+the profile most likely to find the IT-services notices in the corpus interesting, so the demo shows
+something rather than rejecting everything. Seeded at startup; edit it in `SeedProfile.cs`.
+
 ## Open decisions
 
-- **LLM provider for the Phase 3 narrative** — Claude API or Azure OpenAI. Independent of the
-  embedding choice above; the two do not have to be the same vendor.
+- **Semantic Kernel.** The original plan named it for orchestration. The assessment pipeline is
+  deliberately *not* an agent loop — the model must not get to choose whether scoring happens — so SK
+  function-calling would be ceremony there. Where it would genuinely earn its place is an exploratory
+  mode ("find notices matching X and assess the best ones"), which is not built.
 
 Settled: plain `BackgroundService` over Hangfire (simpler, no extra schema; swappable if a dashboard
 turns out to be worth the demo value).

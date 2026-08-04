@@ -1,4 +1,5 @@
-using HilmaAgent.Infrastructure;
+﻿using HilmaAgent.Infrastructure;
+using HilmaAgent.Infrastructure.Assessments;
 using HilmaAgent.Infrastructure.Persistence;
 using HilmaAgent.Worker;
 using Microsoft.EntityFrameworkCore;
@@ -17,6 +18,8 @@ await using (var scope = host.Services.CreateAsyncScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<HilmaDbContext>();
     await db.Database.MigrateAsync();
+    await AssessmentService.EnsureSeedProfileAsync(db);
 }
 
 await host.RunAsync();
+
