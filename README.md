@@ -5,6 +5,9 @@ published notices, indexes them, and — given a company profile — proposes **
 INVESTIGATE** with reasoning and source citations. Every proposal passes a human approval gate;
 nothing is auto-accepted.
 
+This file covers the architecture and the reasoning behind it. For how to actually operate the
+thing — setup, the daily rhythm, how to read a score — see **[docs/GUIDE.md](docs/GUIDE.md)**.
+
 ## The central design decision
 
 The deterministic layer (deadline checks, CPV matching, threshold values, fit scoring) is computed
@@ -22,7 +25,7 @@ the deterministic score, the disagreement is surfaced rather than silently resol
 | 2 | Retrieval — chunking, embeddings, Qdrant | **done** — measured: hit@5 100%, MRR 0.875 over 300 notices |
 | 3 | Agent — deterministic scoring + LLM narration, assessments | **working end to end** against live notices |
 | 4 | React approval queue | **working** — queue, decisions, live SSE run, editable profile |
-| 5 | README polish, metrics | not started |
+| 5 | README polish, metrics | **measured** — 24 assessments; the disagreement pattern is characterised below |
 
 **Phase 1 is done.** `docker compose up` on a clean volume migrates Postgres, searches the live
 index, fetches content from both read APIs under a rate limiter, and stores real Finnish
@@ -36,9 +39,9 @@ Ingestion checkpoint advanced to 2026-07-07T03:05:04.3590000+00:00
 
 ## Stack
 
-ASP.NET Core (API) · `BackgroundService` (ingestion) · PostgreSQL + EF Core · Qdrant · Semantic
-Kernel · Polly via `Microsoft.Extensions.Http.Resilience` · Docker Compose. React + TypeScript
-arrives in Phase 4 — Phases 1–3 are deliberately API-first and exercised through
+ASP.NET Core (API) · `BackgroundService` (ingestion) · PostgreSQL + EF Core · Qdrant · Polly via
+`Microsoft.Extensions.Http.Resilience` · Docker Compose · React 19 + TypeScript on Vite (approval
+queue). Phases 1–3 are API-first by design and remain exercisable without the frontend through
 [`HilmaAgent.Api.http`](src/Api/HilmaAgent.Api.http).
 
 ## Running it
@@ -54,6 +57,18 @@ then ingests on a schedule. The API is on <http://localhost:5080>:
 ```bash
 curl http://localhost:5080/api/notices/stats
 ```
+
+Then the approval queue, which proxies `/api` to the backend so the browser stays on one origin:
+
+```bash
+cd web && npm install && npm run dev     # http://localhost:5173
+```
+
+Postgres and Qdrant data live in named volumes. `docker compose down` keeps them, so a restart
+resumes from the ingestion checkpoint rather than re-fetching and re-embedding; `down -v` discards
+the corpus and the embeddings, which cost money to rebuild.
+
+*(If `docker compose up --build` fails in buildx bake, prefix it with `COMPOSE_BAKE=false`.)*
 
 Run the tests with:
 
@@ -357,10 +372,50 @@ revise is not an audit trail.
 - **model vs score disagreement rate** — a separate signal: how often the model and the deterministic
   rules reached different conclusions from the same inputs, independent of what the human then did.
 
-Both were non-zero within minutes of the UI existing. Of the first five assessments, two were
-model/score disagreements, and in both the model was arguing something the rules structurally cannot
-encode — a SaaS product versus a custom build, and a land-drainage project a software consultancy has
-no business bidding on.
+Over **24 assessments**, the model and the deterministic score reached different conclusions
+**14 times — 58%**. That number is high enough to need explaining rather than reporting, and the
+explanation is the most useful thing this project has produced.
+
+### The disagreements are one pattern, not noise
+
+Nearly every disagreement is the model saying a version of the same sentence: *the CPV code is right,
+but the engagement model is wrong.*
+
+| What the rules cannot see | Notices |
+|---|---|
+| A ready-made SaaS product, not a custom build | `EF-53464`, `EF-53614`, `EF-53261`, `EF-53340` |
+| Hardware or licence resale, not software work | `EF-53266` (data-centre kit), `EF-53432` (VMware licences) |
+| A specialist discipline, not general development | `EF-53343` (penetration testing), `EF-53618` (SOC monitoring) |
+| A different engineering domain entirely | `EF-53172` (rolling stock), `EF-53630` (physical alarm devices), `EF-53730` (excavator work) |
+
+The cause is structural. CPV `72000000` covers custom development, SaaS resale, security monitoring
+and licence reselling alike, and it is worth 45 of the 100 points. So a notice buying **VMware
+licences** scores **93/100** — right code, right region, right value band, right deadline — and is
+still nothing this profile should bid on. No amount of tuning fixes that, because the distinction
+the buyer cares about is not in the taxonomy the score is computed from.
+
+This is the argument for the whole design, arrived at from data rather than asserted up front: the
+deterministic layer is genuinely good at *is this biddable, and is it the right size and place* —
+deadlines, gates, value bands, regions — and structurally blind to *is this the kind of work we do*.
+The model reads the prose and sees exactly that. Neither is trustworthy alone, which is why both are
+stored and a human breaks the tie.
+
+### What this number is not
+
+**The sample is deliberately biased.** These notices were chosen to be mostly open IT procurements
+the profile ought to like — which over-samples precisely the cases where the CPV matches and the
+engagement model does not. A random sample of Finnish notices would be dominated by construction and
+services scoring near zero, where the model and the rules agree trivially. **58% is not an estimate
+of the disagreement rate in the wild**, and reading it as one would be wrong in the flattering
+direction.
+
+The model is not merely conservative, either: it returned GO on four high scorers
+(`EF-53362`, `EF-53424`, `EF-53480`, `EF-53262`), including a Swedish-language Åland notice, so the
+disagreements are discriminating rather than a blanket hedge.
+
+**Override rate is still 0% over a single human review**, and is the number that most needs a real
+reviewer working the queue. It is reported here because it is honest to show which metrics are thin,
+not because one review means anything.
 
 ## Open decisions
 
@@ -407,7 +462,7 @@ Queries are free in practice: a search embeds ~15 tokens, so a thousand searches
 a cent. Re-embedding only happens on a model change — re-chunking is free, because `RawPayload` means
 it never re-fetches.
 
-The Phase 3 LLM will dominate this. A single assessment (profile + retrieved chunks + deterministic
+The Phase 3 LLM dominates this. A single assessment (profile + retrieved chunks + deterministic
 score in, a paragraph out) costs roughly 400× what embedding that notice did. Still cheap at
 portfolio scale, since the human approval gate means you assess the handful of notices that survive
 filtering rather than all of them — but it is a standing argument for keeping the scoring in code and
