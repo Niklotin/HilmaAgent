@@ -4,13 +4,14 @@ import { AssessmentCard } from './components/AssessmentCard'
 import { AssessRunner } from './components/AssessRunner'
 import { DecidedList } from './components/DecidedList'
 import { ErrorBoundary } from './components/ErrorBoundary'
+import { ModelSettings } from './components/ModelSettings'
 import { ProfileEditor } from './components/ProfileEditor'
 import { Shortlist } from './components/Shortlist'
 import { useLanguage, useT, type Lang, type StringKey } from './i18n'
 import { useReviewer } from './reviewer'
 import './App.css'
 
-type Tab = 'queue' | 'assess' | 'shortlist' | 'decided' | 'profile'
+type Tab = 'queue' | 'assess' | 'shortlist' | 'decided' | 'profile' | 'models'
 
 const TAB_KEYS: Record<Tab, StringKey> = {
   queue: 'nav.queue',
@@ -18,6 +19,7 @@ const TAB_KEYS: Record<Tab, StringKey> = {
   shortlist: 'nav.shortlist',
   decided: 'nav.decided',
   profile: 'nav.profile',
+  models: 'nav.models',
 }
 
 function MetricsBar({ metrics }: { metrics: Metrics | null }) {
@@ -43,6 +45,20 @@ function MetricsBar({ metrics }: { metrics: Metrics | null }) {
       <span title={t('metrics.disagreementHint')}>
         {t('metrics.modelVsScore')} <strong>{percent(metrics.modelScoreDisagreementRate)}</strong>
       </span>
+
+      {/* Escalation. Two separate problems: one needs a decision, the other needs a bid — saying
+          only "5 urgent" would leave the reviewer guessing which. Hidden entirely at zero, so the
+          bar stays quiet when nothing is burning. */}
+      {!!metrics.undecidedClosingSoon && (
+        <span className="escalation" title={t('metrics.closingSoonHint')}>
+          ⏳ {t('metrics.closingSoon', { n: metrics.undecidedClosingSoon })}
+        </span>
+      )}
+      {!!metrics.backedClosingSoon && (
+        <span className="escalation" title={t('metrics.bidSoonHint')}>
+          ✎ {t('metrics.bidSoon', { n: metrics.backedClosingSoon })}
+        </span>
+      )}
     </div>
   )
 }
@@ -116,7 +132,7 @@ export default function App() {
           </label>
           <LanguagePicker />
           <nav role="tablist" aria-label={t('nav.label')}>
-            {(['queue', 'assess', 'shortlist', 'decided', 'profile'] as Tab[]).map((value) => (
+            {(['queue', 'assess', 'shortlist', 'decided', 'profile', 'models'] as Tab[]).map((value) => (
               <button
                 key={value}
                 role="tab"
@@ -187,6 +203,7 @@ export default function App() {
       {tab === 'shortlist' && <Shortlist />}
       {tab === 'decided' && <DecidedList reviewer={reviewer} onChanged={refresh} />}
       {tab === 'profile' && <ProfileEditor />}
+      {tab === 'models' && <ModelSettings reviewer={reviewer} />}
     </div>
   )
 }

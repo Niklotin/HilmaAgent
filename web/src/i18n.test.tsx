@@ -79,11 +79,18 @@ describe('language', () => {
   })
 
   it('leaves no string untranslated by accident', () => {
-    // Identical strings are legitimate for a few tokens (CPV, GO), but a long identical sentence is
-    // almost always an English string pasted into the Finnish table.
+    // A few values are the same in both languages on purpose — a product name is not translated,
+    // and neither is an example URL. Listing them explicitly keeps the check sharp: anything else
+    // that matches is almost certainly an English sentence pasted into the Finnish table.
+    const identicalOnPurpose = new Set(['models.providerGemini', 'models.baseUrlPlaceholder'])
+
     const suspicious = Object.keys(dictionaries.fi).filter((key) => {
       const k = key as keyof typeof dictionaries.fi
-      return dictionaries.fi[k] === dictionaries.en[k] && dictionaries.fi[k].length > 12
+      return (
+        !identicalOnPurpose.has(key) &&
+        dictionaries.fi[k] === dictionaries.en[k] &&
+        dictionaries.fi[k].length > 12
+      )
     })
 
     expect(suspicious).toEqual([])

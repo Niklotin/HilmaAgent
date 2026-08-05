@@ -138,6 +138,32 @@ test('shortlists what a reviewer backed, with a link to where bids go', async ({
   }
 })
 
+test('never exposes a stored API key to the browser', async ({ page }) => {
+  const responses: string[] = []
+  page.on('response', async (response) => {
+    if (response.url().includes('/api/providers')) responses.push(await response.text().catch(() => ''))
+  })
+
+  await page.goto('/')
+  await page.getByRole('tab', { name: 'mallit' }).click()
+  await expect(page.locator('.provider').first()).toBeVisible()
+
+  // The key field is a password input and starts empty — there is nothing to prefill it with,
+  // because the API has no way to return a key.
+  const keyInputs = page.locator('.provider input[type="password"]')
+  expect(await keyInputs.count()).toBeGreaterThan(0)
+  for (const value of await keyInputs.evaluateAll((els) => els.map((e) => (e as HTMLInputElement).value)))
+    expect(value).toBe('')
+
+  // And nothing key-shaped came over the wire in the first place.
+  expect(responses.length).toBeGreaterThan(0)
+  for (const body of responses) {
+    expect(body).not.toMatch(/"(apiKey|protectedApiKey)"\s*:\s*"[^"]+"/i)
+    expect(body).not.toMatch(/AIza[0-9A-Za-z_-]{10,}/)
+    expect(body).not.toMatch(/sk-[0-9A-Za-z_-]{10,}/)
+  }
+})
+
 test('ships in Finnish and switches to English on request', async ({ page }) => {
   await page.goto('/')
 

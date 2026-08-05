@@ -634,3 +634,42 @@ code {
   font-size: 0.85em;
   opacity: 0.8;
 }
+
+/* Provider settings.密 One block per provider, because each needs its own key. */
+.provider {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 0.9rem 1rem;
+  margin: 1rem 0;
+}
+
+.provider h3 {
+  margin: 0 0 0.4rem;
+  font-size: 1rem;
+}
+
+.provider label {
+  display: block;
+  margin: 0.6rem 0;
+  font-size: 0.875rem;
+}
+
+.provider input {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  margin-top: 0.25rem;
+  font: inherit;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--fg);
+}
+
+/* Escalation counters. Deliberately the only coloured thing in an otherwise grey metrics bar —
+   they are the two numbers with a clock attached. */
+.escalation {
+  color: var(--flag);
+  font-weight: 600;
+}

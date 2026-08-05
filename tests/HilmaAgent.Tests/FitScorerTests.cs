@@ -130,7 +130,7 @@ public class FitScorerTests
 
         // An absent value is not a small value. Treating it as either extreme would be a fabrication.
         rule.Awarded.ShouldBe(FitScorer.ValueMax / 2);
-        breakdown.Warnings.ShouldContain(w => w.Contains("no contract value"));
+        breakdown.Warnings.ShouldContain(w => w.Text.Contains("no contract value"));
     }
 
     [Fact]
@@ -139,7 +139,7 @@ public class FitScorerTests
         var notice = Notice(value: null);
         notice.EstimatedValueWithheld = true;
 
-        Scorer().Score(notice, ItConsultancy()).Warnings.ShouldContain(w => w.Contains("withheld"));
+        Scorer().Score(notice, ItConsultancy()).Warnings.ShouldContain(w => w.Text.Contains("withheld"));
     }
 
     [Fact]
@@ -180,7 +180,7 @@ public class FitScorerTests
         Deadline(3).ShouldBeLessThan(Deadline(20));
 
         Scorer().Score(Notice(deadline: Now.AddDays(3)), ItConsultancy())
-            .Warnings.ShouldContain(w => w.Contains("day(s) left"));
+            .Warnings.ShouldContain(w => w.Text.Contains("day(s) left"));
     }
 
     [Fact]
@@ -230,5 +230,65 @@ public class FitScorerTests
         var breakdown = new ScoreBreakdown(total, [], [], []);
 
         Recommendation.FromScore(breakdown).ShouldBe(expected);
+    }
+
+    /// <summary>
+    /// Every sentence the scorer writes also carries a code and its arguments.
+    /// </summary>
+    /// <remarks>
+    /// The prose is English and is stored inside the assessment, which is never rewritten — so the
+    /// UI can only show it in Finnish if the scorer hands over the pieces to rebuild it. A rule that
+    /// forgets its code silently falls back to English for every future reader.
+    /// </remarks>
+    [Fact]
+    public void Every_rule_carries_a_code_for_translation()
+    {
+        var breakdown = Scorer().Score(Notice(deadline: Now.AddDays(20)), ItConsultancy());
+
+        breakdown.Rules.ShouldAllBe(rule => rule.DetailCode != null);
+    }
+
+    [Fact]
+    public void A_cpv_match_carries_the_codes_it_compared()
+    {
+        var rule = Scorer().Score(Notice(), ItConsultancy()).Rules.Single(r => r.Rule == "cpv_overlap");
+
+        rule.DetailCode.ShouldBe(ScoreCodes.CpvBestMatch);
+        rule.DetailArgs.ShouldNotBeNull();
+        // The profile declares this code as well, so the best pairing is the exact one.
+        rule.DetailArgs!["notice"].ShouldBe("72200000");
+        rule.DetailArgs["profile"].ShouldBe("72200000");
+        // The relation is a code too, so the UI can translate it rather than embedding an English
+        // word in the middle of a Finnish sentence.
+        rule.DetailArgs["relation"].ShouldBe(ScoreCodes.RelationExact);
+    }
+
+    [Fact]
+    public void A_gate_carries_its_code_and_the_date_that_triggered_it()
+    {
+        var gate = Scorer().Score(Notice(deadline: Now.AddDays(-1)), ItConsultancy()).Gates
+            .Single(g => g.Gate == "deadline_passed");
+
+        gate.DetailCode.ShouldBe(ScoreCodes.GateDeadlinePassed);
+        gate.DetailArgs!["date"].ShouldBe(Now.AddDays(-1).ToString("yyyy-MM-dd"));
+    }
+
+    [Fact]
+    public void A_warning_carries_its_code_too()
+    {
+        var notice = Notice(value: null);
+        notice.EstimatedValueWithheld = true;
+
+        Scorer().Score(notice, ItConsultancy()).Warnings
+            .ShouldContain(w => w.Code == ScoreCodes.WarnValueWithheld);
+    }
+
+    /// <summary>The English sentence stays exactly as it was, because it is what older records hold.</summary>
+    [Fact]
+    public void The_english_sentence_is_still_written_alongside_the_code()
+    {
+        var rule = Scorer().Score(Notice(), ItConsultancy()).Rules.Single(r => r.Rule == "cpv_overlap");
+
+        rule.Detail.ShouldStartWith("Best CPV match:");
     }
 }

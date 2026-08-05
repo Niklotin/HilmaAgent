@@ -25,16 +25,21 @@ Editing a company profile does **not** re-score existing assessments.
 ## Verifying changes
 
 ```bash
-dotnet test                              # 75 tests; keep them green
-cd web && npm test                       # 46 frontend tests (Vitest)
+dotnet test                              # 105 tests; keep them green
+cd web && npm test                       # 61 frontend tests (Vitest)
 cd web && npm run build                  # frontend type check + production build
-cd web && npm run test:e2e               # 11 end-to-end tests (Playwright)
+cd web && npm run test:e2e               # 12 end-to-end tests (Playwright)
 ```
 
 The E2E suite drives the **container** at <http://localhost:5080>, not the Vite dev server, because
 the API image bakes in the built SPA and that is the topology that ships. Bring the stack up first.
 It is deliberately read-only: decisions are append-only, so a test that recorded one could not clean
 up after itself and every run would leave real rows in the audit trail.
+
+The **write** path is covered instead by `DecisionWritePathTests`, which hosts the API with
+`WebApplicationFactory` against a Testcontainers Postgres created and destroyed per class. Those tests
+need Docker running but no keys — the fixture forces `Embeddings:Provider=fake` and blanks the Gemini
+key, so a test can never quietly start spending money.
 
 The README screenshots are generated, not hand-captured — `cd web && node shots.mjs` against the
 running container rewrites `docs/images/`. Regenerate them when the UI changes rather than letting
@@ -65,10 +70,21 @@ which is what catches an English sentence pasted into the Finnish table.
 `LanguageProvider` lives in its own file on purpose: a module that exports both a component and plain
 functions cannot be hot-reloaded by React Fast Refresh.
 
-**Score-breakdown details are not translated.** `FitScorer` writes them in English (`"Best CPV match:
-72000000 vs 72000000 (exact)"`) and they are stored inside the assessment record, which is never
-rewritten. Translating them would mean emitting structured rule data instead of prose — a change to
-the load-bearing scorer, not a UI change.
+**Score-breakdown details are translated by code, not by string.** `FitScorer` still writes the
+English sentence — it is what the model is shown and what every existing record holds — but it also
+emits a `DetailCode` from `ScoreCodes` and a `DetailArgs` dictionary. The UI renders those
+(`ScoreDetail`), and falls back to the stored sentence when a code is absent or unknown.
+
+Two rules when adding a scorer message:
+
+- **Emit a code and args alongside the sentence.** A rule that forgets its code silently renders in
+  English forever, for every future reader.
+- **Codes go in `ScoreCodes`, translations in both dictionaries.** Nested codes such as a CPV
+  `relation` are themselves translated before substitution, otherwise a Finnish sentence ends up with
+  an English word inside it.
+
+Assessments made before codes existed carry only the sentence, and are never rewritten — the reader
+adapts, as everywhere else in this repo.
 
 ## Running the stack
 
@@ -88,6 +104,34 @@ when a clean slate is genuinely wanted; re-embedding costs money.
 Three keys in `.env` at the repo root, gitignored: Hilma, Azure OpenAI (embeddings), Gemini
 (narration). Read them through environment variables; don't print the values. `.env.example`
 documents each one.
+
+Model-provider keys can also be entered in the UI, and those are **stored encrypted** with
+`IDataProtector` (`ProviderCredentialStore`). Three rules that are easy to break by accident:
+
+- **Never return a key from an endpoint.** `GetStatusesAsync` yields a four-character hint;
+  `ResolveAsync` returns the real value and is only called by the code about to make the request.
+  There is an E2E test asserting no key-shaped string reaches the browser.
+- **The protector's purpose string is fixed forever.** Changing it silently invalidates every
+  stored key.
+- **The key ring lives in Postgres**, not the container filesystem — otherwise every rebuild
+  orphans every stored credential, and the failure looks like a bad API key.
+
+A stored credential beats the environment; the environment stays the bootstrap path. Changing a
+provider's base URL **clears its stored key** so it cannot be forwarded to a new destination.
+
+## Model providers
+
+`INarratorRegistry` resolves the narrator per assessment from a stored setting, so the model can be
+changed without a restart. `IAssessmentNarrator` is unchanged and still receives a finished
+`ScoreBreakdown` — swapping providers changes the prose, never the ranking.
+
+The prompt lives once in `NarrationPrompt`, not per provider: otherwise comparing two models would
+be comparing two prompts, and the rule forbidding the model to touch the score would have to be
+restated in each new implementation.
+
+`OpenAiCompatibleNarrator` covers OpenAI, Azure, OpenRouter and local Ollama/LM Studio — they differ
+by base URL, not protocol. **The embedding model is deploy-time only**: switching it would put
+vectors from two models in one Qdrant collection and silently wreck retrieval.
 
 ## The company profile is fictional
 

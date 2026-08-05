@@ -34,7 +34,7 @@ public class FitScorer(TimeProvider? timeProvider = null)
     {
         var rules = new List<ScoreRule>();
         var gates = new List<ScoreGate>();
-        var warnings = new List<string>();
+        var warnings = new List<ScoreNote>();
 
         ApplyGates(notice, gates);
 
@@ -58,16 +58,21 @@ public class FitScorer(TimeProvider? timeProvider = null)
 
         if (notice.SubmissionDeadline is { } deadline && deadline <= now)
             gates.Add(new ScoreGate("deadline_passed",
-                $"Submission deadline passed on {deadline:yyyy-MM-dd}; the tender can no longer be bid."));
+                $"Submission deadline passed on {deadline:yyyy-MM-dd}; the tender can no longer be bid.",
+                ScoreCodes.GateDeadlinePassed,
+                new Dictionary<string, string> { ["date"] = deadline.ToString("yyyy-MM-dd") }));
 
         if (notice.IsCancelled == true)
-            gates.Add(new ScoreGate("cancelled", "The notice has been cancelled by the buyer."));
+            gates.Add(new ScoreGate("cancelled", "The notice has been cancelled by the buyer.",
+                ScoreCodes.GateCancelled));
 
         // Award and prior-information notices announce outcomes or intentions. They are useful
         // market intelligence and worth indexing, but there is nothing to bid on.
         if (notice.NoticeType is { } type && NotBiddable.Any(marker => type.Contains(marker, StringComparison.OrdinalIgnoreCase)))
             gates.Add(new ScoreGate("not_biddable",
-                $"Notice type '{type}' announces a result or an intention rather than an open tender."));
+                $"Notice type '{type}' announces a result or an intention rather than an open tender.",
+                ScoreCodes.GateNotBiddable,
+                new Dictionary<string, string> { ["type"] = type }));
     }
 
     private static readonly string[] NotBiddable =
@@ -81,27 +86,38 @@ public class FitScorer(TimeProvider? timeProvider = null)
     private static ScoreRule ScoreCpv(Notice notice, CompanyProfile profile)
     {
         if (profile.PreferredCpvCodes.Count == 0)
-            return new ScoreRule("cpv_overlap", 0, CpvMax, "Profile declares no CPV codes; no overlap can be computed.");
+            return new ScoreRule("cpv_overlap", 0, CpvMax, "Profile declares no CPV codes; no overlap can be computed.",
+                ScoreCodes.CpvNoProfileCodes);
 
         if (notice.CpvCodes.Count == 0)
-            return new ScoreRule("cpv_overlap", 0, CpvMax, "Notice carries no CPV codes.");
+            return new ScoreRule("cpv_overlap", 0, CpvMax, "Notice carries no CPV codes.", ScoreCodes.CpvNoNoticeCodes);
 
         var best = 0;
         string? bestPair = null;
+        Dictionary<string, string>? args = null;
 
         foreach (var noticeCode in notice.CpvCodes)
         foreach (var profileCode in profile.PreferredCpvCodes)
         {
-            var (awarded, relation) = CompareCpv(noticeCode, profileCode);
+            var (awarded, relation, relationCode, depth) = CompareCpv(noticeCode, profileCode);
             if (awarded <= best) continue;
             best = awarded;
             bestPair = $"{noticeCode} vs {profileCode} ({relation})";
+            args = new Dictionary<string, string>
+            {
+                ["notice"] = noticeCode,
+                ["profile"] = profileCode,
+                ["relation"] = relationCode,
+                ["digits"] = depth.ToString(),
+            };
         }
 
-        return new ScoreRule("cpv_overlap", best, CpvMax,
-            best > 0
-                ? $"Best CPV match: {bestPair}."
-                : $"No shared CPV division between notice ({string.Join(", ", notice.CpvCodes)}) and profile.");
+        return best > 0
+            ? new ScoreRule("cpv_overlap", best, CpvMax, $"Best CPV match: {bestPair}.", ScoreCodes.CpvBestMatch, args)
+            : new ScoreRule("cpv_overlap", best, CpvMax,
+                $"No shared CPV division between notice ({string.Join(", ", notice.CpvCodes)}) and profile.",
+                ScoreCodes.CpvNoOverlap,
+                new Dictionary<string, string> { ["codes"] = string.Join(", ", notice.CpvCodes) });
     }
 
     /// <summary>
@@ -111,14 +127,16 @@ public class FitScorer(TimeProvider? timeProvider = null)
     /// So both codes are reduced to their significant prefix first, and containment is scored as the
     /// strong signal it is.
     /// </summary>
-    private static (int Awarded, string Relation) CompareCpv(string noticeCode, string profileCode)
+    private static (int Awarded, string Relation, string RelationCode, int Digits) CompareCpv(
+        string noticeCode, string profileCode)
     {
         var notice = SignificantPrefix(noticeCode);
         var profile = SignificantPrefix(profileCode);
 
-        if (notice.Length == 0 || profile.Length == 0) return (0, "no comparable digits");
+        if (notice.Length == 0 || profile.Length == 0)
+            return (0, "no comparable digits", ScoreCodes.RelationUnrelated, 0);
 
-        if (notice == profile) return (CpvMax, "exact");
+        if (notice == profile) return (CpvMax, "exact", ScoreCodes.RelationExact, notice.Length);
 
         // Containment: the notice's category sits inside the company's declared area, or vice versa.
         if (notice.StartsWith(profile, StringComparison.Ordinal) || profile.StartsWith(notice, StringComparison.Ordinal))
@@ -132,7 +150,7 @@ public class FitScorer(TimeProvider? timeProvider = null)
                 _ => 30,   // division-level: broad, but the notice genuinely falls in the declared area
             };
 
-            return (awarded, $"contained at {depth} significant digits");
+            return (awarded, $"contained at {depth} significant digits", ScoreCodes.RelationContained, depth);
         }
 
         // Siblings: related but neither contains the other, e.g. 72200000 vs 72590000.
@@ -146,7 +164,10 @@ public class FitScorer(TimeProvider? timeProvider = null)
             _ => 0,
         };
 
-        return (siblingAward, shared > 0 ? $"related, {shared} shared digits" : "unrelated");
+        return (siblingAward,
+            shared > 0 ? $"related, {shared} shared digits" : "unrelated",
+            shared > 0 ? ScoreCodes.RelationRelated : ScoreCodes.RelationUnrelated,
+            shared);
     }
 
     /// <summary>Strips the trailing zeros that pad a CPV code to eight digits, keeping the meaningful part.</summary>
@@ -174,13 +195,16 @@ public class FitScorer(TimeProvider? timeProvider = null)
     private static ScoreRule ScoreRegion(Notice notice, CompanyProfile profile)
     {
         if (profile.Regions.Count == 0)
-            return new ScoreRule("region_match", RegionMax, RegionMax, "Profile declares no region limit; treated as nationwide.");
+            return new ScoreRule("region_match", RegionMax, RegionMax,
+                "Profile declares no region limit; treated as nationwide.", ScoreCodes.RegionNoLimit);
 
         if (notice.Region.Count == 0)
-            return new ScoreRule("region_match", RegionMax / 2, RegionMax, "Notice declares no region; cannot be excluded on geography.");
+            return new ScoreRule("region_match", RegionMax / 2, RegionMax,
+                "Notice declares no region; cannot be excluded on geography.", ScoreCodes.RegionNoticeUnstated);
 
         var best = 0;
         string? bestPair = null;
+        Dictionary<string, string>? args = null;
 
         foreach (var noticeRegion in notice.Region)
         foreach (var profileRegion in profile.Regions)
@@ -190,15 +214,19 @@ public class FitScorer(TimeProvider? timeProvider = null)
 
             int awarded;
             string relation;
+            string relationCode;
+            int shared;
 
             if (a.StartsWith(b, StringComparison.Ordinal) || b.StartsWith(a, StringComparison.Ordinal))
             {
                 awarded = RegionMax;
                 relation = "contained";
+                relationCode = ScoreCodes.RelationContained;
+                shared = Math.Min(a.Length, b.Length);
             }
             else
             {
-                var shared = SharedPrefixLength(a, b);
+                shared = SharedPrefixLength(a, b);
                 awarded = shared switch
                 {
                     >= 4 => 16,
@@ -207,27 +235,39 @@ public class FitScorer(TimeProvider? timeProvider = null)
                     _ => 0,
                 };
                 relation = shared > 0 ? $"{shared} shared characters" : "unrelated";
+                relationCode = shared > 0 ? ScoreCodes.RelationRelated : ScoreCodes.RelationUnrelated;
             }
 
             if (awarded <= best) continue;
             best = awarded;
             bestPair = $"{noticeRegion} vs {profileRegion} ({relation})";
+            args = new Dictionary<string, string>
+            {
+                ["notice"] = noticeRegion,
+                ["profile"] = profileRegion,
+                ["relation"] = relationCode,
+                ["characters"] = shared.ToString(),
+            };
         }
 
-        return new ScoreRule("region_match", best, RegionMax,
-            best > 0
-                ? $"Best region match: {bestPair}."
-                : $"Notice regions ({string.Join(", ", notice.Region)}) fall outside the profile's areas.");
+        return best > 0
+            ? new ScoreRule("region_match", best, RegionMax, $"Best region match: {bestPair}.",
+                ScoreCodes.RegionBestMatch, args)
+            : new ScoreRule("region_match", best, RegionMax,
+                $"Notice regions ({string.Join(", ", notice.Region)}) fall outside the profile's areas.",
+                ScoreCodes.RegionOutside,
+                new Dictionary<string, string> { ["regions"] = string.Join(", ", notice.Region) });
     }
 
     /// <summary>
     /// Value is frequently missing, and an absent value is not a small value. Unknown scores
     /// mid-band and raises a warning rather than being treated as either a fit or a miss.
     /// </summary>
-    private static ScoreRule ScoreValue(Notice notice, CompanyProfile profile, List<string> warnings)
+    private static ScoreRule ScoreValue(Notice notice, CompanyProfile profile, List<ScoreNote> warnings)
     {
         if (profile.MinContractValue is null && profile.MaxContractValue is null)
-            return new ScoreRule("value_band", ValueMax, ValueMax, "Profile declares no contract value limits.");
+            return new ScoreRule("value_band", ValueMax, ValueMax, "Profile declares no contract value limits.",
+                ScoreCodes.ValueNoLimits);
 
         var value = notice.EstimatedValue
             // A range: take its midpoint, which is the least wrong single number to compare.
@@ -236,17 +276,23 @@ public class FitScorer(TimeProvider? timeProvider = null)
         if (value is null)
         {
             warnings.Add(notice.EstimatedValueWithheld
-                ? "The buyer withheld the contract value, so value fit could not be assessed."
-                : "The notice states no contract value, so value fit could not be assessed.");
+                ? new ScoreNote("The buyer withheld the contract value, so value fit could not be assessed.",
+                    ScoreCodes.WarnValueWithheld)
+                : new ScoreNote("The notice states no contract value, so value fit could not be assessed.",
+                    ScoreCodes.WarnValueUnstated));
 
-            return new ScoreRule("value_band", ValueMax / 2, ValueMax, "Contract value unknown; scored neutrally.");
+            return new ScoreRule("value_band", ValueMax / 2, ValueMax, "Contract value unknown; scored neutrally.",
+                ScoreCodes.ValueUnknown);
         }
 
         var below = profile.MinContractValue is { } floor && value < floor;
         var above = profile.MaxContractValue is { } ceiling && value > ceiling;
 
         if (!below && !above)
-            return new ScoreRule("value_band", ValueMax, ValueMax, $"Estimated value {value:N0} is within the profile's band.");
+            return new ScoreRule("value_band", ValueMax, ValueMax,
+                $"Estimated value {value:N0} is within the profile's band.",
+                ScoreCodes.ValueWithinBand,
+                new Dictionary<string, string> { ["value"] = value.Value.ToString("N0") });
 
         // Near-misses still score: a contract 20% over the ceiling may be deliverable with a partner,
         // whereas one ten times over is not. The cliff is at 2x.
@@ -256,15 +302,23 @@ public class FitScorer(TimeProvider? timeProvider = null)
 
         return new ScoreRule("value_band", awarded, ValueMax,
             $"Estimated value {value:N0} falls {(below ? "below" : "above")} the profile's " +
-            $"{(below ? "minimum" : "maximum")} of {reference:N0}.");
+            $"{(below ? "minimum" : "maximum")} of {reference:N0}.",
+            below ? ScoreCodes.ValueBelowMinimum : ScoreCodes.ValueAboveMaximum,
+            new Dictionary<string, string>
+            {
+                ["value"] = value.Value.ToString("N0"),
+                ["limit"] = reference.ToString("N0"),
+            });
     }
 
-    private ScoreRule ScoreDeadline(Notice notice, List<string> warnings)
+    private ScoreRule ScoreDeadline(Notice notice, List<ScoreNote> warnings)
     {
         if (notice.SubmissionDeadline is not { } deadline)
         {
-            warnings.Add("The notice states no submission deadline; time to bid could not be assessed.");
-            return new ScoreRule("deadline_headroom", DeadlineMax / 2, DeadlineMax, "No submission deadline stated.");
+            warnings.Add(new ScoreNote("The notice states no submission deadline; time to bid could not be assessed.",
+                ScoreCodes.WarnDeadlineUnstated));
+            return new ScoreRule("deadline_headroom", DeadlineMax / 2, DeadlineMax, "No submission deadline stated.",
+                ScoreCodes.DeadlineNone);
         }
 
         var days = (deadline - _time.GetUtcNow()).TotalDays;
@@ -278,11 +332,20 @@ public class FitScorer(TimeProvider? timeProvider = null)
         };
 
         if (days is > 0 and < 7)
-            warnings.Add($"Only {days:F0} day(s) left to submit; preparation time is very short.");
+            warnings.Add(new ScoreNote($"Only {days:F0} day(s) left to submit; preparation time is very short.",
+                ScoreCodes.WarnDeadlineImminent,
+                new Dictionary<string, string> { ["days"] = days.ToString("F0") }));
 
-        return new ScoreRule("deadline_headroom", awarded, DeadlineMax,
-            days > 0
-                ? $"{days:F0} day(s) until the {deadline:yyyy-MM-dd} deadline."
-                : $"Deadline {deadline:yyyy-MM-dd} has passed.");
+        var when = new Dictionary<string, string>
+        {
+            ["days"] = days.ToString("F0"),
+            ["date"] = deadline.ToString("yyyy-MM-dd"),
+        };
+
+        return days > 0
+            ? new ScoreRule("deadline_headroom", awarded, DeadlineMax,
+                $"{days:F0} day(s) until the {deadline:yyyy-MM-dd} deadline.", ScoreCodes.DeadlineDaysLeft, when)
+            : new ScoreRule("deadline_headroom", awarded, DeadlineMax,
+                $"Deadline {deadline:yyyy-MM-dd} has passed.", ScoreCodes.DeadlinePassed, when);
     }
 }

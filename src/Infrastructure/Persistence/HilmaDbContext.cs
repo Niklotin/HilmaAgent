@@ -2,11 +2,14 @@ using HilmaAgent.Core.Assessments;
 using HilmaAgent.Core.Ingestion;
 using HilmaAgent.Core.Notices;
 using HilmaAgent.Core.Profiles;
+using HilmaAgent.Core.Providers;
+using Microsoft.AspNetCore.DataProtection.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 
 namespace HilmaAgent.Infrastructure.Persistence;
 
-public class HilmaDbContext(DbContextOptions<HilmaDbContext> options) : DbContext(options)
+public class HilmaDbContext(DbContextOptions<HilmaDbContext> options)
+    : DbContext(options), IDataProtectionKeyContext
 {
     public DbSet<Notice> Notices => Set<Notice>();
     public DbSet<NoticeChunk> NoticeChunks => Set<NoticeChunk>();
@@ -14,6 +17,20 @@ public class HilmaDbContext(DbContextOptions<HilmaDbContext> options) : DbContex
     public DbSet<FitAssessment> FitAssessments => Set<FitAssessment>();
     public DbSet<ApprovalDecision> ApprovalDecisions => Set<ApprovalDecision>();
     public DbSet<IngestionCheckpoint> IngestionCheckpoints => Set<IngestionCheckpoint>();
+    public DbSet<ProviderCredential> ProviderCredentials => Set<ProviderCredential>();
+    public DbSet<AppSetting> AppSettings => Set<AppSetting>();
+
+    /// <summary>
+    /// The data-protection key ring, kept in Postgres rather than on a container filesystem.
+    /// </summary>
+    /// <remarks>
+    /// Stored API keys are encrypted with these. On a container filesystem they would be regenerated
+    /// on every rebuild, and every stored credential would become permanently undecryptable — a
+    /// failure that surfaces later as an authentication error from the provider and sends you looking
+    /// in entirely the wrong place. Postgres is already the durable volume, so they live there.
+    /// </remarks>
+    public DbSet<Microsoft.AspNetCore.DataProtection.EntityFrameworkCore.DataProtectionKey> DataProtectionKeys
+        => Set<Microsoft.AspNetCore.DataProtection.EntityFrameworkCore.DataProtectionKey>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -102,6 +119,23 @@ public class HilmaDbContext(DbContextOptions<HilmaDbContext> options) : DbContex
 
             decision.HasIndex(d => d.AssessmentId);
             decision.HasIndex(d => d.DecidedAt);
+        });
+
+        modelBuilder.Entity<ProviderCredential>(credential =>
+        {
+            credential.HasKey(c => c.Provider);
+            credential.Property(c => c.Provider).HasMaxLength(64);
+            credential.Property(c => c.KeyHint).HasMaxLength(8);
+            credential.Property(c => c.BaseUrl).HasMaxLength(512);
+            credential.Property(c => c.Model).HasMaxLength(128);
+            credential.Property(c => c.UpdatedBy).HasMaxLength(128);
+        });
+
+        modelBuilder.Entity<AppSetting>(setting =>
+        {
+            setting.HasKey(s => s.Key);
+            setting.Property(s => s.Key).HasMaxLength(128);
+            setting.Property(s => s.Value).HasMaxLength(512);
         });
 
         modelBuilder.Entity<IngestionCheckpoint>(checkpoint =>

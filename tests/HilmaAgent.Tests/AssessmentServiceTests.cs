@@ -82,7 +82,13 @@ public class AssessmentServiceTests
     };
 
     private static AssessmentService Service(HilmaDbContext db, IAssessmentNarrator narrator) =>
-        new(db, new FitScorer(new FakeTimeProvider(Now)), narrator, NullLogger<AssessmentService>.Instance);
+        new(db, new FitScorer(new FakeTimeProvider(Now)), new FixedNarrator(narrator), NullLogger<AssessmentService>.Instance);
+
+    /// <summary>Hands back one narrator, so these tests need no provider, key or database lookup.</summary>
+    private sealed class FixedNarrator(IAssessmentNarrator narrator) : INarratorRegistry
+    {
+        public Task<IAssessmentNarrator> ResolveAsync(CancellationToken ct = default) => Task.FromResult(narrator);
+    }
 
     [Fact]
     public async Task Invented_citations_are_dropped_rather_than_stored()

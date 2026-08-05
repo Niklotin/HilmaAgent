@@ -3,12 +3,15 @@ using System.Threading.RateLimiting;
 using HilmaAgent.Core.Notices;
 using HilmaAgent.Infrastructure.Hilma;
 using HilmaAgent.Core.Assessments;
+using HilmaAgent.Core.Providers;
 using HilmaAgent.Core.Retrieval;
 using HilmaAgent.Infrastructure.Assessments;
 using HilmaAgent.Infrastructure.Ingestion;
 using HilmaAgent.Infrastructure.Persistence;
+using HilmaAgent.Infrastructure.Providers;
 using HilmaAgent.Infrastructure.Retrieval;
 using Qdrant.Client;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -29,6 +32,12 @@ public static class InfrastructureServiceCollectionExtensions
 
         services.AddDbContext<HilmaDbContext>(options =>
             options.UseNpgsql(configuration.GetConnectionString("Postgres")));
+
+        // Encryption keys for stored provider credentials. In Postgres, not on the container
+        // filesystem, which is recreated on every rebuild.
+        services.AddDataProtection()
+            .SetApplicationName("HilmaAgent")
+            .PersistKeysToDbContext<HilmaDbContext>();
 
         services.AddSingleton<INoticeParser, NoticeContractParser>();
         services.AddSingleton<SearchIndexNoticeParser>();
@@ -137,12 +146,23 @@ public static class InfrastructureServiceCollectionExtensions
         // No dependencies beyond a clock — the scorer is a pure function and registered as such.
         services.AddSingleton(_ => new FitScorer());
 
-        services.AddHttpClient<IAssessmentNarrator, GeminiAssessmentNarrator>((provider, http) =>
+        // Named clients rather than a typed one: the narrator is now built per run by the registry,
+        // from whichever provider the operator has selected, so the container cannot know its type
+        // up front.
+        services.AddHttpClient(ProviderKeys.Gemini, (provider, http) =>
         {
-            var gemini = provider.GetRequiredService<IOptions<GeminiOptions>>().Value;
-            http.Timeout = gemini.RequestTimeout;
+            http.Timeout = provider.GetRequiredService<IOptions<GeminiOptions>>().Value.RequestTimeout;
         });
 
+        services.AddHttpClient(ProviderKeys.OpenAiCompatible, (provider, http) =>
+        {
+            // Generous: a model running on the operator's own laptop is far slower than a hosted one.
+            http.Timeout = TimeSpan.FromMinutes(5);
+        });
+
+        services.AddScoped<ProviderCredentialStore>();
+        services.AddScoped<NarratorRegistry>();
+        services.AddScoped<INarratorRegistry>(p => p.GetRequiredService<NarratorRegistry>());
         services.AddScoped<AssessmentService>();
     }
 

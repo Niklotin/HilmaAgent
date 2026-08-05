@@ -20,6 +20,19 @@ public sealed record Narration(string Recommendation, string Reasoning, IReadOnl
 /// a recommendation, not to produce the number — so a change of provider changes the prose and never
 /// the ranking.
 /// </remarks>
+/// <summary>
+/// Supplies the narrator for a run.
+/// </summary>
+/// <remarks>
+/// An interface rather than the concrete registry so that <c>AssessmentService</c> — the thing that
+/// guards the score — stays testable without a database, an HTTP stack or a provider key. Which
+/// narrator comes back is the registry's business; the service only needs one.
+/// </remarks>
+public interface INarratorRegistry
+{
+    Task<IAssessmentNarrator> ResolveAsync(CancellationToken ct = default);
+}
+
 public interface IAssessmentNarrator
 {
     /// <summary>Model identifier, stored on the assessment so it stays interpretable after a model change.</summary>

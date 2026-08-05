@@ -34,7 +34,7 @@ line.
 | 2 | Retrieval — chunking, embeddings, Qdrant | **done** — measured: hit@5 100%, MRR 0.875 over 300 notices |
 | 3 | Agent — deterministic scoring + LLM narration, assessments | **working end to end** against live notices |
 | 4 | React approval queue | **done** — Finnish UI (English toggle), queue with filters, semantic search, live SSE run, shortlist, decided-assessment audit trail, editable profile |
-| 5 | README polish, metrics | **done** — 24 assessments, the disagreement pattern characterised below, 132 tests across three layers |
+| 5 | README polish, metrics | **done** — 24 assessments, the disagreement pattern characterised below, 178 tests across three layers |
 
 **Phase 1 is done.** `docker compose up` on a clean volume migrates Postgres, searches the live
 index, fetches content from both read APIs under a rate limiter, and stores real Finnish
@@ -87,9 +87,9 @@ the corpus and the embeddings, which cost money to rebuild.
 Run the tests with:
 
 ```bash
-dotnet test                        # 75 backend tests
-npm test --prefix web              # 46 frontend tests
-npm run test:e2e --prefix web      # 11 end-to-end tests, against the running container
+dotnet test                        # 105 backend tests
+npm test --prefix web              # 61 frontend tests
+npm run test:e2e --prefix web      # 12 end-to-end tests, against the running container
 ```
 
 The frontend tests pin the things that are easy to break quietly: the reader that keeps old
@@ -339,6 +339,63 @@ profile describes a **custom development** consultancy. No CPV code distinguishe
 from "build us a system", so the deterministic rules cannot see that distinction — and the model
 could not have overruled the score even if it were wrong to. Both survive; a human decides.
 
+### Choosing the model, and holding its key
+
+The narrator used to be fixed at startup by configuration. It is now resolved per assessment from a
+stored setting, so an operator can change models — or point the app at one running on their own
+machine — without touching `.env` or restarting anything.
+
+**`IAssessmentNarrator` did not change.** Whatever the registry builds still receives a finished
+`ScoreBreakdown` and has no way to alter it, so swapping providers changes the prose and never the
+ranking. The prompt lives once in `NarrationPrompt` rather than inside each implementation: if every
+provider carried its own, comparing two models would be comparing two prompts as much as two models,
+and the rule forbidding the model to touch the score would have to be restated — and could be
+forgotten — in each new one.
+
+The choice is a **setting, not a per-request argument**. An assessment cannot be quietly re-run
+against a weaker model to get a friendlier answer.
+
+`OpenAiCompatibleNarrator` is one implementation covering OpenAI, Azure, OpenRouter — and Ollama, LM
+Studio or vLLM on localhost. They differ by base URL and model name, not by protocol, so a second
+vendor SDK would buy nothing. It tolerates a reply fenced in ```json, which hosted models rarely need
+and small local ones frequently do.
+
+#### Keys are entered in the UI, and cannot be read back
+
+![The model settings screen, showing a stored key as a four-character hint beside an empty password
+field](docs/images/models.png)
+
+API keys are stored **encrypted** with ASP.NET Data Protection (`IDataProtector`) and the read path
+is built so that it *cannot* return one: the endpoint yields a four-character hint, which is enough
+to tell two keys apart and useless to anyone who intercepts it. Only the code about to make a request
+to that provider ever resolves the real value. An E2E test asserts no key-shaped string reaches the
+browser.
+
+Three decisions worth stating:
+
+- **The key ring lives in Postgres**, not on the container filesystem, which is recreated on every
+  rebuild. Otherwise every stored credential would become permanently undecryptable, and the failure
+  would surface later as an authentication error from the provider — sending you looking in entirely
+  the wrong place. When a key genuinely cannot be decrypted, the UI says so rather than falling back
+  silently.
+- **Leaving the key field blank keeps the stored one.** You cannot read a key back, so editing an
+  endpoint or a model name must not require retyping a secret you are not allowed to see. Sending an
+  empty string is how you delete one.
+- **Changing a provider's base URL clears its key.** A key was given for a particular destination;
+  carrying it silently to a new one is how a key ends up somewhere its owner never intended.
+
+**What this is not.** Encryption at rest protects a leaked database dump or a stray backup. It does
+nothing against someone who can reach the application, and *there is still no authentication* —
+anyone who can reach the port can already approve tenders, and can now also set keys. This raises the
+cost of that existing gap rather than closing it, and the settings screen says so on the page itself.
+A real deployment wants a secret manager and a sign-in, in that order.
+
+**Embeddings are deliberately excluded.** Switching the embedding model at runtime would put vectors
+from two models into one Qdrant collection and compare them against each other, silently wrecking
+retrieval — the dimension guard only catches the case where the two sizes differ. Doing it properly
+means a collection per model and a re-index, which costs real money, so it stays a deploy-time
+choice.
+
 ### Model
 
 Google Gemini (`gemini-3.6-flash`), behind `IAssessmentNarrator`. The model is **pinned, not an
@@ -406,10 +463,19 @@ forgotten in the other, which silently renders the key itself onto a button. So 
 dictionaries have identical key sets, and that no long string is identical across them, which catches
 an English sentence pasted into the Finnish table.
 
-**The score breakdown stays English.** Those strings are written by `FitScorer` and stored inside the
-assessment record, which is never rewritten. Translating them means emitting structured rule data
-rather than prose — a change to the scorer, not to the UI, and not one worth making to relabel four
-rows.
+**The score breakdown is translated by code, not by string.** Those sentences are written by
+`FitScorer` and stored inside the assessment record, which is never rewritten — so they cannot be
+translated after the fact. The scorer now emits a stable code and its arguments *alongside* the
+English sentence, and the UI rebuilds the sentence in whichever language is selected.
+
+That is the only shape this could take without breaking an invariant. Rewriting stored rows was never
+an option, and translating the prose by matching on it would have been a parser over English that
+broke the first time a word changed. The English stays because it is what the model is shown, what
+older records hold, and the fallback whenever a code is missing or unknown — so an assessment made
+before this existed still renders, in English, rather than as a blank or a raw key.
+
+Nested values are translated too: a CPV comparison reports its relation as `exact` or `contained`
+rather than as a word, so a Finnish sentence does not end up with an English one embedded in it.
 
 ### Citations are numbered, not spelled out
 
@@ -496,6 +562,15 @@ the attribution would be worse than asking.
 - **override rate** — how often a human changed the agent's answer. The headline quality number.
 - **model vs score disagreement rate** — a separate signal: how often the model and the deterministic
   rules reached different conclusions from the same inputs, independent of what the human then did.
+
+Plus two escalation counts, shown only when non-zero so the bar stays quiet when nothing is burning:
+
+- **closing this week** — undecided, deadline inside seven days. These need a *decision*.
+- **to bid** — already backed, still open, closing inside seven days. These need a *bid*.
+
+Counted separately on purpose. A single "5 urgent" would leave the reviewer to work out which of the
+two things was being asked of them, and those are different afternoons. A closed tender counts as
+neither: it needs nothing from anyone, and nagging about it would be noise.
 
 Over **24 assessments**, the model and the deterministic score reached different conclusions
 **14 times — 58%**. That number is high enough to need explaining rather than reporting, and the
@@ -588,10 +663,10 @@ not cosmetic.
 
 ### Operational maturity
 
-- **Thin end-to-end coverage.** 73 backend, 21 component and 8 Playwright tests cover the main paths,
-  but the E2E suite is read-only — it never records a decision, because the audit trail is
-  append-only and a test cannot clean up after itself. Exercising the write path properly needs a
-  disposable database per run, which is the next real step rather than more assertions.
+- **No browser-level coverage of the write path.** The write path itself *is* covered — 15 tests host
+  the API against a Testcontainers Postgres and record real decisions — but the Playwright suite stays
+  read-only against the running stack, so the last untested seam is a click actually reaching that
+  endpoint. It has been driven by hand; it is not automated.
 - **No cost controls.** Assessment costs real money per notice; a product needs budget caps and
   per-user quotas, not a good intention.
 - **No observability.** No telemetry, no error reporting.

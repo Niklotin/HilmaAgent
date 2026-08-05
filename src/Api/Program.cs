@@ -40,6 +40,7 @@ app.MapSearchEndpoints();
 app.MapAssessmentEndpoints();
 app.MapProfileEndpoints();
 app.MapApprovalEndpoints();
+app.MapProviderEndpoints();
 
 // Client-side routing: anything not matched by an API route is the SPA's own concern, not a 404.
 if (servesSpa) app.MapFallbackToFile("index.html");

@@ -25,7 +25,9 @@ public sealed record AssessmentProgress(string Step, string Detail, object? Data
 public class AssessmentService(
     HilmaDbContext db,
     FitScorer scorer,
-    IAssessmentNarrator narrator,
+    // Resolved per run rather than injected once: the operator can change which model narrates
+    // without a restart. What it returns still receives a finished score and cannot alter it.
+    INarratorRegistry narrators,
     ILogger<AssessmentService> logger,
     // Optional: used only to order the notice's own passages by relevance to the company. The
     // assessment is correct without it, which is why it is allowed to be absent.
@@ -59,6 +61,7 @@ public class AssessmentService(
         var sources = await RetrieveSourcesAsync(notice, profile, ct);
         progress?.Report(new AssessmentProgress("retrieving", $"Retrieved {sources.Count} passage(s)."));
 
+        var narrator = await narrators.ResolveAsync(ct);
         progress?.Report(new AssessmentProgress("narrating", $"Asking {narrator.ModelId} for a justification."));
         var narration = await narrator.NarrateAsync(notice, profile, breakdown, sources, ct);
 

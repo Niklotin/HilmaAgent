@@ -310,11 +310,40 @@ public static class ApprovalEndpoints
             var reviewed = latest.Count;
             var modelVsScore = await db.FitAssessments.CountAsync(a => a.RecommendationDisagreement, ct);
 
+            // Escalation: what has a clock running out. Two different problems, so two numbers —
+            // an undecided notice closing on Friday needs a *decision*, while one already backed
+            // needs a *bid*, and telling a reviewer "5 urgent" without saying which is useless.
+            var now = DateTimeOffset.UtcNow;
+            var soon = now.AddDays(7);
+            var decidedIds = latest.Select(d => d.AssessmentId).ToHashSet();
+
+            var closing = await db.FitAssessments.AsNoTracking()
+                .Where(a => a.Notice!.SubmissionDeadline != null
+                    && a.Notice.SubmissionDeadline > now
+                    && a.Notice.SubmissionDeadline <= soon)
+                .Select(a => new { a.Id, a.ModelRecommendation })
+                .ToListAsync(ct);
+
+            var byAssessment = latest.ToDictionary(d => d.AssessmentId);
+
+            var undecidedClosingSoon = closing.Count(a => !decidedIds.Contains(a.Id));
+
+            var backedClosingSoon = closing.Count(a =>
+                byAssessment.TryGetValue(a.Id, out var decision)
+                && decision.Decision != DecisionType.Rejected
+                && decision.EffectiveRecommendation(a.ModelRecommendation) != Recommendation.NoGo);
+
             return Results.Ok(new
             {
                 assessments,
                 reviewed,
                 pending = assessments - reviewed,
+
+                // Undecided and closing within a week: these need a human, today.
+                undecidedClosingSoon,
+
+                // Backed, still open and closing within a week: these need a bid, today.
+                backedClosingSoon,
 
                 // How often the humans changed the agent's answer. The headline quality number.
                 overrides = latest.Count(d => d.Decision != DecisionType.Approved),

@@ -3,6 +3,7 @@ import { api, parseBreakdown, type QueueItem } from '../api/client'
 import { useDraftNote } from '../drafts'
 import { useT } from '../i18n'
 import { Reasoning } from './Reasoning'
+import { ScoreDetail } from './ScoreDetail'
 
 const LABELS: Record<string, string> = {
   GO: 'GO',
@@ -163,20 +164,24 @@ export function AssessmentCard({
                 <td className="num">
                   {rule.awarded}/{rule.max}
                 </td>
-                <td className="muted">{rule.detail}</td>
+                <td className="muted">
+                  <ScoreDetail detail={rule.detail} code={rule.detailCode} args={rule.detailArgs} />
+                </td>
               </tr>
             ))}
             {breakdown.gates.map((gate) => (
               <tr key={gate.gate} className="gate">
                 <td>⛔ {gate.gate}</td>
-                <td className="num">blocks</td>
-                <td className="muted">{gate.detail}</td>
+                <td className="num">{t('card.blocks')}</td>
+                <td className="muted">
+                  <ScoreDetail detail={gate.detail} code={gate.detailCode} args={gate.detailArgs} />
+                </td>
               </tr>
             ))}
             {breakdown.warnings.map((warning) => (
-              <tr key={warning} className="warning">
+              <tr key={warning.code ?? warning.text} className="warning">
                 <td colSpan={3} className="muted">
-                  ⚠ {warning}
+                  ⚠ <ScoreDetail detail={warning.text} code={warning.code} args={warning.args} />
                 </td>
               </tr>
             ))}

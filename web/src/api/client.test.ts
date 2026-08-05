@@ -34,8 +34,13 @@ describe('parseBreakdown', () => {
       awarded: 45,
       max: 45,
       detail: 'Best CPV match: exact.',
+      detailCode: null,
+      detailArgs: null,
     })
-    expect(breakdown?.warnings).toEqual(['The buyer withheld the contract value.'])
+    // A warning written as a bare string is normalised, so the renderer sees one shape.
+    expect(breakdown?.warnings).toEqual([
+      { text: 'The buyer withheld the contract value.', code: null, args: null },
+    ])
   })
 
   it('reads PascalCase, as older rows were written', () => {
@@ -51,7 +56,7 @@ describe('parseBreakdown', () => {
     })
 
     expect(parseBreakdown(json)?.gates).toEqual([
-      { gate: 'deadline_passed', detail: 'Submission deadline passed on 2026-07-01.' },
+      { gate: 'deadline_passed', detail: 'Submission deadline passed on 2026-07-01.', detailCode: null, detailArgs: null },
     ])
   })
 
@@ -62,7 +67,7 @@ describe('parseBreakdown', () => {
     })
 
     expect(parseBreakdown(json)?.gates).toEqual([
-      { gate: 'cancelled', detail: 'The notice has been cancelled by the buyer.' },
+      { gate: 'cancelled', detail: 'The notice has been cancelled by the buyer.', detailCode: null, detailArgs: null },
     ])
   })
 
@@ -70,6 +75,50 @@ describe('parseBreakdown', () => {
     const breakdown = parseBreakdown(JSON.stringify({ total: 12 }))
 
     expect(breakdown).toEqual({ total: 12, rules: [], gates: [], warnings: [] })
+  })
+
+  it('reads the translation code and its arguments when the scorer emitted them', () => {
+    const json = JSON.stringify({
+      total: 97,
+      rules: [
+        {
+          rule: 'cpv_overlap',
+          awarded: 45,
+          max: 45,
+          detail: 'Best CPV match: 72000000 vs 72000000 (exact).',
+          detailCode: 'cpv.best_match',
+          detailArgs: { notice: '72000000', profile: '72000000', relation: 'exact' },
+        },
+      ],
+      gates: [],
+      warnings: [{ text: 'Only 3 day(s) left.', code: 'warn.deadline_imminent', args: { days: '3' } }],
+    })
+
+    const breakdown = parseBreakdown(json)
+
+    expect(breakdown?.rules[0].detailCode).toBe('cpv.best_match')
+    expect(breakdown?.rules[0].detailArgs).toEqual({
+      notice: '72000000',
+      profile: '72000000',
+      relation: 'exact',
+    })
+    expect(breakdown?.warnings[0]).toEqual({
+      text: 'Only 3 day(s) left.',
+      code: 'warn.deadline_imminent',
+      args: { days: '3' },
+    })
+  })
+
+  it('reads codes written in PascalCase too', () => {
+    const json = JSON.stringify({
+      Total: 0,
+      Rules: [{ Rule: 'value_band', Awarded: 0, Max: 20, Detail: 'x', DetailCode: 'value.above_maximum', DetailArgs: { value: '9', limit: '3' } }],
+    })
+
+    const rule = parseBreakdown(json)!.rules[0]
+
+    expect(rule.detailCode).toBe('value.above_maximum')
+    expect(rule.detailArgs).toEqual({ value: '9', limit: '3' })
   })
 
   // A card that cannot parse its breakdown should still render the rest of the assessment, so the

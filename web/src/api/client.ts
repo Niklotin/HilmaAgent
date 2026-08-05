@@ -70,6 +70,40 @@ export interface ShortlistItem {
   daysLeft: number | null
 }
 
+/**
+ * What the UI is allowed to know about a provider's credentials.
+ *
+ * There is deliberately no field for the key itself: the API cannot return one. `keyHint` is the
+ * last four characters, which is enough to tell two keys apart and useless to anyone who sees it.
+ */
+export interface ProviderStatus {
+  provider: string
+  hasKey: boolean
+  keyHint: string | null
+  baseUrl: string | null
+  model: string | null
+  /** A key is stored but could not be decrypted — the data-protection key ring changed. */
+  keyUnreadable: boolean
+  /** The key came from the environment rather than the database. */
+  configuredFromEnvironment: boolean
+  updatedAt: string | null
+  updatedBy: string | null
+}
+
+export interface NarratorOption {
+  provider: string
+  model: string
+  /** False when the provider could not actually run — no key, or no endpoint. */
+  ready: boolean
+  reason: string | null
+}
+
+export interface ProvidersResponse {
+  active: string
+  options: NarratorOption[]
+  providers: ProviderStatus[]
+}
+
 export interface SearchChunk {
   chunkId: string
   section: string
@@ -100,26 +134,48 @@ export interface Metrics {
   byDecision?: Record<string, number>
   modelScoreDisagreements?: number
   modelScoreDisagreementRate?: number
+  /** Undecided and closing within a week — these need a decision today. */
+  undecidedClosingSoon?: number
+  /** Backed, still open, closing within a week — these need a bid today. */
+  backedClosingSoon?: number
   note?: string
 }
 
+/**
+ * A rule's contribution.
+ *
+ * `detail` is the English sentence the scorer wrote and stored. `detailCode` and `detailArgs` are
+ * the same fact in a form the UI can render in either language — absent on assessments written
+ * before codes existed, which is why `detail` remains the fallback rather than being replaced.
+ */
 export interface ScoreRule {
   rule: string
   awarded: number
   max: number
   detail: string
+  detailCode?: string | null
+  detailArgs?: Record<string, string> | null
 }
 
 export interface ScoreGate {
   gate: string
   detail: string
+  detailCode?: string | null
+  detailArgs?: Record<string, string> | null
+}
+
+/** Older records store a warning as a bare string; newer ones as an object with a code. */
+export interface ScoreNote {
+  text: string
+  code?: string | null
+  args?: Record<string, string> | null
 }
 
 export interface ScoreBreakdown {
   total: number
   rules: ScoreRule[]
   gates: ScoreGate[]
-  warnings: string[]
+  warnings: ScoreNote[]
 }
 
 /** Vite proxies /api to the backend in dev; in the container the app is served from the same origin. */
@@ -158,6 +214,27 @@ export const api = {
   decided: () => request<DecidedItem[]>('/decided?take=50'),
 
   shortlist: () => request<ShortlistItem[]>('/shortlist?take=50'),
+
+  providers: () => request<ProvidersResponse>('/providers'),
+
+  /** Omit `apiKey` to leave the stored one alone; send `''` to remove it. */
+  saveProvider: (
+    provider: string,
+    body: { apiKey?: string; baseUrl?: string; model?: string; updatedBy?: string },
+  ) =>
+    request<{ provider: string; keyClearedByEndpointChange: boolean }>(`/providers/${provider}`, {
+      method: 'PUT',
+      body: JSON.stringify(body),
+    }),
+
+  forgetProvider: (provider: string) =>
+    request<void>(`/providers/${provider}`, { method: 'DELETE' }),
+
+  setNarratorProvider: (provider: string) =>
+    request<{ active: string; model: string }>('/providers/active', {
+      method: 'PUT',
+      body: JSON.stringify({ provider }),
+    }),
 
   assessment: (id: string) => request<FitAssessment>(`/assessments/${id}`),
 
@@ -213,6 +290,9 @@ export function parseBreakdown(json: string | null | undefined): ScoreBreakdown 
     const pick = <T>(lower: string, upper: string, fallback: T): T =>
       (raw[lower] ?? raw[upper] ?? fallback) as T
 
+    const args = (source: Record<string, unknown>, lower: string, upper: string) =>
+      (source[lower] ?? source[upper] ?? null) as Record<string, string> | null
+
     return {
       total: pick('total', 'Total', 0),
       rules: pick<ScoreRule[]>('rules', 'Rules', []).map((rule) => {
@@ -222,6 +302,8 @@ export function parseBreakdown(json: string | null | undefined): ScoreBreakdown 
           awarded: (r.awarded ?? r.Awarded ?? 0) as number,
           max: (r.max ?? r.Max ?? 0) as number,
           detail: (r.detail ?? r.Detail ?? '') as string,
+          detailCode: (r.detailCode ?? r.DetailCode ?? null) as string | null,
+          detailArgs: args(r, 'detailArgs', 'DetailArgs'),
         }
       }),
       gates: pick<ScoreGate[]>('gates', 'Gates', []).map((gate) => {
@@ -229,9 +311,22 @@ export function parseBreakdown(json: string | null | undefined): ScoreBreakdown 
         return {
           gate: (g.gate ?? g.Gate ?? '') as string,
           detail: (g.detail ?? g.Detail ?? '') as string,
+          detailCode: (g.detailCode ?? g.DetailCode ?? null) as string | null,
+          detailArgs: args(g, 'detailArgs', 'DetailArgs'),
         }
       }),
-      warnings: pick<string[]>('warnings', 'Warnings', []),
+      // Warnings used to be bare strings and are now objects. Both shapes are in the database and
+      // neither will be rewritten, so the reader normalises rather than the history being migrated.
+      warnings: pick<unknown[]>('warnings', 'Warnings', []).map((warning) => {
+        if (typeof warning === 'string') return { text: warning, code: null, args: null }
+
+        const w = warning as Record<string, unknown>
+        return {
+          text: (w.text ?? w.Text ?? '') as string,
+          code: (w.code ?? w.Code ?? null) as string | null,
+          args: args(w, 'args', 'Args'),
+        }
+      }),
     }
   } catch {
     return null

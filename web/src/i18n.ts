@@ -27,6 +27,45 @@ const fi = {
   'nav.shortlist': 'kärkilista',
   'nav.decided': 'päätetyt',
   'nav.profile': 'profiili',
+  'nav.models': 'mallit',
+
+  'models.heading': 'Mallit ja rajapinta-avaimet',
+  'models.intro':
+    'Valitse mikä malli kirjoittaa arvioiden perustelut, ja tallenna tarvittavat rajapinta-avaimet. Avaimet salataan tallennettaessa eikä niitä palauteta koskaan takaisin.',
+  'models.activeHeading': 'Perustelut kirjoittaa',
+  'models.activeHint': 'Asetus koskee kaikkia uusia arvioita. Vanhoihin arvioihin on tallennettu se malli, joka ne kirjoitti.',
+  'models.notReady': 'ei käytettävissä',
+  'models.reason.no-api-key': 'rajapinta-avain puuttuu',
+  'models.reason.no-endpoint': 'osoite puuttuu',
+  'models.providerGemini': 'Google Gemini',
+  'models.providerOpenAi': 'OpenAI-yhteensopiva',
+  'models.providerOpenAiHint': 'OpenAI, Azure, OpenRouter — tai paikallinen malli, esimerkiksi Ollama tai LM Studio.',
+  'models.apiKey': 'Rajapinta-avain',
+  'models.apiKeyStored': 'tallennettu',
+  'models.apiKeyFromEnv': 'ympäristömuuttujasta',
+  'models.apiKeyPlaceholder': 'liitä avain — tyhjä jättää nykyisen ennalleen',
+  'models.apiKeyNone': 'ei avainta',
+  'models.apiKeyUnreadable':
+    'Tallennettua avainta ei voitu purkaa: salausavaimet ovat vaihtuneet. Syötä avain uudelleen.',
+  'models.baseUrl': 'Rajapinnan osoite',
+  'models.baseUrlPlaceholder': 'http://localhost:11434/v1',
+  'models.baseUrlWarning':
+    'Osoitteen vaihtaminen poistaa tallennetun avaimen, jottei sitä lähetetä uuteen kohteeseen vahingossa. Syötä avain uudelleen samalla.',
+  'models.model': 'Mallin tunniste',
+  'models.modelPlaceholder': 'esim. llama3.1:8b',
+  'models.save': 'Tallenna',
+  'models.saving': 'Tallennetaan…',
+  'models.saved': 'Tallennettu.',
+  'models.savedKeyCleared': 'Tallennettu. Avain poistettiin, koska osoite vaihtui — syötä se uudelleen.',
+  'models.forget': 'Poista tiedot',
+  'models.updatedBy': 'päivittänyt',
+  'models.localTitle': 'Paikallinen malli',
+  'models.localHint':
+    'Aseta osoitteeksi paikallisen palvelimesi rajapinta, esimerkiksi Ollaman http://host.docker.internal:11434/v1. Avainta ei tarvita.',
+  'models.security':
+    'Sovelluksessa ei ole vielä kirjautumista: kuka tahansa, joka ylettyy palvelimeen, voi vaihtaa nämä. Salaus suojaa vuotaneelta tietokantavedokselta, ei siltä.',
+  'models.embeddingsNote':
+    'Upotusmalli valitaan käynnistyksessä (Embeddings-asetukset). Sen vaihtaminen mitätöisi koko vektori-indeksin, joten se ei ole ajonaikainen valinta.',
 
   'reviewer.label': 'Käsittelijä',
   'reviewer.placeholder': 'nimesi',
@@ -42,6 +81,10 @@ const fi = {
   'metrics.overrideHint': 'Kuinka usein ihminen muutti agentin vastausta. Tärkein laatuluku.',
   'metrics.disagreementHint': 'Kuinka usein malli ja laskennalliset pisteet päätyivät eri tulokseen.',
   'metrics.none': 'Ei vielä arvioita — aja yksi Arvioi-välilehdeltä.',
+  'metrics.closingSoon': '{n} päättyy viikossa',
+  'metrics.closingSoonHint': 'Määräaika umpeutuu seitsemässä päivässä eikä päätöstä ole vielä tehty.',
+  'metrics.bidSoon': '{n} tarjottavaa',
+  'metrics.bidSoonHint': 'Kärkilistalla, määräaika umpeutuu seitsemässä päivässä.',
 
   'common.loading': 'Ladataan…',
 
@@ -76,6 +119,7 @@ const fi = {
   'card.approve': 'Hyväksy',
   'card.reject': 'Hylkää',
   'card.editTo': 'Muuta:',
+  'card.blocks': 'estää',
 
   'assess.notice': 'Ilmoitus',
   'assess.buyer': 'Hankintayksikkö',
@@ -149,6 +193,41 @@ const fi = {
   'profile.saved': 'Tallennettu. Uudet arviot käyttävät näitä arvoja; vanhat säilyvät ennallaan.',
   'profile.loading': 'Ladataan profiilia…',
 
+
+  'score.relation.exact': 'tarkka osuma',
+  'score.relation.contained': 'sisältyy',
+  'score.relation.related': 'lähisukuinen',
+  'score.relation.unrelated': 'ei yhteyttä',
+
+  'score.cpv.no_profile_codes': 'Profiilissa ei ole CPV-koodeja, joten osumaa ei voi laskea.',
+  'score.cpv.no_notice_codes': 'Ilmoituksessa ei ole CPV-koodeja.',
+  'score.cpv.best_match': 'Paras CPV-osuma: {notice} vs {profile} ({relation}).',
+  'score.cpv.no_overlap': 'Ilmoituksen CPV-koodeilla ({codes}) ei ole yhteistä pääluokkaa profiilin kanssa.',
+
+  'score.region.no_limit': 'Profiili ei rajaa aluetta; käsitellään valtakunnallisena.',
+  'score.region.notice_unstated': 'Ilmoitus ei kerro aluetta; sitä ei voi sulkea pois maantieteen perusteella.',
+  'score.region.best_match': 'Paras alueosuma: {notice} vs {profile} ({relation}).',
+  'score.region.outside': 'Ilmoituksen alueet ({regions}) ovat profiilin alueiden ulkopuolella.',
+
+  'score.value.no_limits': 'Profiili ei rajaa hankinnan arvoa.',
+  'score.value.unknown': 'Hankinnan arvo ei ole tiedossa; pisteytetty neutraalisti.',
+  'score.value.within_band': 'Arvioitu arvo {value} on profiilin haarukassa.',
+  'score.value.below_minimum': 'Arvioitu arvo {value} alittaa profiilin alarajan {limit}.',
+  'score.value.above_maximum': 'Arvioitu arvo {value} ylittää profiilin ylärajan {limit}.',
+
+  'score.deadline.none': 'Määräaikaa ei ole ilmoitettu.',
+  'score.deadline.days_left': '{days} päivää määräaikaan {date}.',
+  'score.deadline.passed': 'Määräaika {date} on umpeutunut.',
+
+  'score.gate.deadline_passed': 'Määräaika umpeutui {date}; tarjousta ei voi enää jättää.',
+  'score.gate.cancelled': 'Hankintayksikkö on perunut ilmoituksen.',
+  'score.gate.not_biddable': 'Ilmoitustyyppi {type} kertoo tuloksesta tai aikeesta, ei avoimesta tarjouskilpailusta.',
+
+  'score.warn.value_withheld': 'Hankintayksikkö ei julkaissut hankinnan arvoa, joten arvon sopivuutta ei voitu arvioida.',
+  'score.warn.value_unstated': 'Ilmoituksessa ei kerrota hankinnan arvoa, joten arvon sopivuutta ei voitu arvioida.',
+  'score.warn.deadline_unstated': 'Ilmoituksessa ei kerrota määräaikaa, joten valmisteluaikaa ei voitu arvioida.',
+  'score.warn.deadline_imminent': 'Aikaa jättää tarjous on enää {days} päivää; valmisteluaika on hyvin lyhyt.',
+
   'error.card': 'Tämän kortin näyttäminen epäonnistui',
 } as const
 
@@ -165,6 +244,45 @@ const en: Record<StringKey, string> = {
   'nav.shortlist': 'shortlist',
   'nav.decided': 'decided',
   'nav.profile': 'profile',
+  'nav.models': 'models',
+
+  'models.heading': 'Models and API keys',
+  'models.intro':
+    'Choose which model writes the assessment narratives, and store the API keys it needs. Keys are encrypted when stored and are never returned.',
+  'models.activeHeading': 'Narratives written by',
+  'models.activeHint': 'Applies to every new assessment. Existing ones record the model that wrote them.',
+  'models.notReady': 'not usable',
+  'models.reason.no-api-key': 'no API key',
+  'models.reason.no-endpoint': 'no endpoint',
+  'models.providerGemini': 'Google Gemini',
+  'models.providerOpenAi': 'OpenAI-compatible',
+  'models.providerOpenAiHint': 'OpenAI, Azure, OpenRouter — or a local model such as Ollama or LM Studio.',
+  'models.apiKey': 'API key',
+  'models.apiKeyStored': 'stored',
+  'models.apiKeyFromEnv': 'from environment',
+  'models.apiKeyPlaceholder': 'paste a key — blank leaves the stored one alone',
+  'models.apiKeyNone': 'no key',
+  'models.apiKeyUnreadable':
+    'A stored key could not be decrypted: the encryption keys have changed. Enter the key again.',
+  'models.baseUrl': 'Endpoint',
+  'models.baseUrlPlaceholder': 'http://localhost:11434/v1',
+  'models.baseUrlWarning':
+    'Changing the endpoint clears the stored key, so it cannot be sent somewhere it was not meant for. Re-enter it at the same time.',
+  'models.model': 'Model identifier',
+  'models.modelPlaceholder': 'e.g. llama3.1:8b',
+  'models.save': 'Save',
+  'models.saving': 'Saving…',
+  'models.saved': 'Saved.',
+  'models.savedKeyCleared': 'Saved. The key was cleared because the endpoint changed — enter it again.',
+  'models.forget': 'Remove stored details',
+  'models.updatedBy': 'updated by',
+  'models.localTitle': 'Local model',
+  'models.localHint':
+    'Point the endpoint at your own server, e.g. Ollama on http://host.docker.internal:11434/v1. No key needed.',
+  'models.security':
+    'There is no sign-in yet: anyone who can reach the server can change these. Encryption protects a leaked database dump, not that.',
+  'models.embeddingsNote':
+    'The embedding model is chosen at startup (Embeddings settings). Changing it would invalidate the whole vector index, so it is not a runtime choice.',
 
   'reviewer.label': 'Reviewer',
   'reviewer.placeholder': 'your name',
@@ -180,6 +298,10 @@ const en: Record<StringKey, string> = {
   'metrics.overrideHint': "How often a human changed the agent's answer. The headline quality number.",
   'metrics.disagreementHint': 'How often the model and the deterministic score reached different conclusions.',
   'metrics.none': 'No assessments yet — run one from the Assess tab.',
+  'metrics.closingSoon': '{n} closing this week',
+  'metrics.closingSoonHint': 'Deadline within seven days and no decision recorded yet.',
+  'metrics.bidSoon': '{n} to bid',
+  'metrics.bidSoonHint': 'On the shortlist, with a deadline within seven days.',
 
   'common.loading': 'Loading…',
 
@@ -213,6 +335,7 @@ const en: Record<StringKey, string> = {
   'card.approve': 'Approve',
   'card.reject': 'Reject',
   'card.editTo': 'Edit to:',
+  'card.blocks': 'blocks',
 
   'assess.notice': 'Notice',
   'assess.buyer': 'Buyer',
@@ -287,6 +410,41 @@ const en: Record<StringKey, string> = {
   'profile.saving': 'Saving…',
   'profile.saved': 'Saved. New assessments will use these values; existing ones are unchanged.',
   'profile.loading': 'Loading profile…',
+
+
+  'score.relation.exact': 'exact',
+  'score.relation.contained': 'contained',
+  'score.relation.related': 'related',
+  'score.relation.unrelated': 'unrelated',
+
+  'score.cpv.no_profile_codes': 'The profile declares no CPV codes, so no overlap can be computed.',
+  'score.cpv.no_notice_codes': 'The notice carries no CPV codes.',
+  'score.cpv.best_match': 'Best CPV match: {notice} vs {profile} ({relation}).',
+  'score.cpv.no_overlap': 'No shared CPV division between the notice ({codes}) and the profile.',
+
+  'score.region.no_limit': 'The profile declares no region limit; treated as nationwide.',
+  'score.region.notice_unstated': 'The notice declares no region; it cannot be excluded on geography.',
+  'score.region.best_match': 'Best region match: {notice} vs {profile} ({relation}).',
+  'score.region.outside': 'The notice regions ({regions}) fall outside the profile areas.',
+
+  'score.value.no_limits': 'The profile declares no contract value limits.',
+  'score.value.unknown': 'Contract value unknown; scored neutrally.',
+  'score.value.within_band': 'Estimated value {value} is within the profile band.',
+  'score.value.below_minimum': 'Estimated value {value} falls below the profile minimum of {limit}.',
+  'score.value.above_maximum': 'Estimated value {value} exceeds the profile maximum of {limit}.',
+
+  'score.deadline.none': 'No submission deadline stated.',
+  'score.deadline.days_left': '{days} day(s) until the {date} deadline.',
+  'score.deadline.passed': 'Deadline {date} has passed.',
+
+  'score.gate.deadline_passed': 'Submission deadline passed on {date}; the tender can no longer be bid.',
+  'score.gate.cancelled': 'The notice has been cancelled by the buyer.',
+  'score.gate.not_biddable': 'Notice type {type} announces a result or an intention rather than an open tender.',
+
+  'score.warn.value_withheld': 'The buyer withheld the contract value, so value fit could not be assessed.',
+  'score.warn.value_unstated': 'The notice states no contract value, so value fit could not be assessed.',
+  'score.warn.deadline_unstated': 'The notice states no submission deadline, so time to bid could not be assessed.',
+  'score.warn.deadline_imminent': 'Only {days} day(s) left to submit; preparation time is very short.',
 
   'error.card': 'This card failed to render',
 }
