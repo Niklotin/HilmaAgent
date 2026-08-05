@@ -68,6 +68,13 @@ public static class InfrastructureServiceCollectionExtensions
                 Delay = hilma.RetryBaseDelay,
                 BackoffType = DelayBackoffType.Exponential,
                 UseJitter = true,
+
+                // When the API answers a 429 with Retry-After it is telling us exactly how long to
+                // wait. Guessing with our own backoff instead is both ruder and worse: too short and
+                // we are throttled again, too long and ingestion crawls. The header wins where it is
+                // present; the exponential schedule stays as the fallback for everything else.
+                ShouldRetryAfterHeader = true,
+
                 ShouldHandle = args => ValueTask.FromResult(args.Outcome switch
                 {
                     { Exception: HttpRequestException } => true,

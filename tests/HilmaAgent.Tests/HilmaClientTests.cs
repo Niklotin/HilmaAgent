@@ -1,4 +1,5 @@
-﻿using System.Net;
+﻿using System.Diagnostics;
+using System.Net;
 using HilmaAgent.Core.Notices;
 using HilmaAgent.Infrastructure;
 using Microsoft.Extensions.Configuration;
@@ -120,6 +121,37 @@ public class HilmaClientTests : IDisposable
 
         document.ShouldNotBeNull();
         _server.LogEntries.Count(entry => entry.RequestMessage?.Path == "/api/avp/notices/n-throttled").ShouldBe(2);
+    }
+
+    /// <summary>
+    /// A 429 carrying <c>Retry-After</c> is an instruction, not a hint.
+    /// </summary>
+    /// <remarks>
+    /// The configured backoff here is 10ms, so if the pipeline fell back to its own exponential
+    /// schedule the retry would land almost immediately. Waiting out the header instead is the
+    /// difference between backing off by agreement and backing off by guess — and the published
+    /// per-minute limit is itself only a guess, so the server's own answer is the better authority.
+    /// </remarks>
+    [Fact]
+    public async Task Waits_as_long_as_a_429_told_it_to()
+    {
+        _server.Given(Request.Create().WithPath("/api/avp/notices/n-retry-after").UsingGet())
+            .InScenario("retry-after").WillSetStateTo("second-attempt")
+            .RespondWith(Response.Create()
+                .WithStatusCode(HttpStatusCode.TooManyRequests)
+                .WithHeader("Retry-After", "1"));
+
+        _server.Given(Request.Create().WithPath("/api/avp/notices/n-retry-after").UsingGet())
+            .InScenario("retry-after").WhenStateIs("second-attempt")
+            .RespondWith(Response.Create().WithBody("""{"noticeId":"n-retry-after"}"""));
+
+        var started = Stopwatch.GetTimestamp();
+        var document = await CreateClient().GetNoticeAsync("n-retry-after");
+        var elapsed = Stopwatch.GetElapsedTime(started);
+
+        document.ShouldNotBeNull();
+        // Slack for timer granularity; the point is that it is nowhere near the 10ms base delay.
+        elapsed.ShouldBeGreaterThan(TimeSpan.FromMilliseconds(900));
     }
 
     [Fact]

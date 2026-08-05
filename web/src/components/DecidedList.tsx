@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { api, type ApprovalDecision, type DecidedItem } from '../api/client'
 
 const LABELS: Record<string, string> = { GO: 'GO', NO_GO: 'NO-GO', INVESTIGATE: 'INVESTIGATE' }
@@ -23,12 +23,25 @@ export function DecidedList({ reviewer, onChanged }: { reviewer: string; onChang
   const [items, setItems] = useState<DecidedItem[] | null>(null)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    api
-      .decided()
-      .then(setItems)
-      .catch((e) => setError(e instanceof Error ? e.message : String(e)))
+  const load = useCallback(async () => {
+    try {
+      setItems(await api.decided())
+      setError(null)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e))
+    }
   }, [])
+
+  useEffect(() => {
+    void load()
+  }, [load])
+
+  // A revision has to reload *this* list, not just the queue: the parent's refresh only touches the
+  // queue and the metrics, so without this the card keeps showing the verdict you just replaced.
+  const handleChanged = useCallback(async () => {
+    await load()
+    onChanged()
+  }, [load, onChanged])
 
   if (error) return <p className="error">{error}</p>
   if (!items) return <p className="muted">Loading…</p>
@@ -42,7 +55,7 @@ export function DecidedList({ reviewer, onChanged }: { reviewer: string; onChang
         keeps the old.
       </p>
       {items.map((item) => (
-        <DecidedCard key={item.id} item={item} reviewer={reviewer} onChanged={onChanged} />
+        <DecidedCard key={item.id} item={item} reviewer={reviewer} onChanged={handleChanged} />
       ))}
     </main>
   )

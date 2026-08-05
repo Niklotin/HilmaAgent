@@ -424,6 +424,11 @@ autom4te.cache/
 tarballs/
 test-results/
 
+# Playwright output — traces and HTML reports are per-run artifacts, not source.
+playwright-report/
+blob-report/
+.playwright/
+
 # content below from: https://github.com/github/gitignore/blob/main/Global/macOS.gitignore
 # General
 .DS_Store
@@ -493,3 +498,4 @@ samples/
 web/node_modules/
 web/dist/
 
+*.png

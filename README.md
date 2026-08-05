@@ -17,6 +17,15 @@ in code. The LLM only writes the *narrative justification* on top of those numbe
 means a model swap changes the prose, not the ranking. Where the model's recommendation contradicts
 the deterministic score, the disagreement is surfaced rather than silently resolved.
 
+![A queue card scoring 97/100 with an exact CPV match, where the model nevertheless returns
+INVESTIGATE, shown beside the rule-by-rule breakdown](docs/images/queue-disagreement.png)
+
+That is the whole argument in one card. The rules give it **97/100** — `cpv_overlap 45/45`, an exact
+match on `72000000` — and the model still says INVESTIGATE, because the buyer wants penetration
+testing and health-sector compliance expertise, which no CPV code distinguishes from custom
+development. Both are stored, the card says *you decide*, and the number can be argued with line by
+line.
+
 ## Status
 
 | Phase | Scope | State |
@@ -78,13 +87,20 @@ the corpus and the embeddings, which cost money to rebuild.
 Run the tests with:
 
 ```bash
-dotnet test                  # 72 backend tests
-npm test --prefix web        # 21 frontend tests
+dotnet test                        # 73 backend tests
+npm test --prefix web              # 26 frontend tests
+npm run test:e2e --prefix web      # 8 end-to-end tests, against the running container
 ```
 
 The frontend tests pin the things that are easy to break quietly: the reader that keeps old
 assessments legible across a serializer change, the note draft that has to survive a card being
 unmounted, and the refusal to record a decision that nobody signed.
+
+The end-to-end suite covers the seam neither of the other two can reach — the **built bundle talking
+to the real API**. Component tests fake the network and backend tests render nothing, so a renamed
+field or a projection that quietly stopped being returned passes both and still breaks the app. It
+drives <http://localhost:5080>, the container that actually ships, and is read-only by design:
+decisions are append-only, so a test that recorded one could not clean up after itself.
 
 Local development without Docker expects Postgres on `localhost:5432` (`hilma`/`hilma`/`hilma`) and
 the subscription key in user-secrets:
@@ -113,6 +129,11 @@ IngestionWorker ── NoticeIngestionService ── TolerantNoticeParser
 a time, under a rate limit. So ingestion is a real throttled pipeline rather than a CSV load — the
 rate limiter sits *in front of* the retry strategy in the resilience pipeline, because a burst of
 retries is exactly what would breach the published limit.
+
+**And where the API says how long to wait, we wait that long.** A 429 carrying `Retry-After` is an
+instruction, not a hint; honouring it beats our own exponential guess in both directions, since too
+short gets throttled again and too long makes ingestion crawl. The backoff schedule remains the
+fallback for everything without the header.
 
 **The raw payload is always kept.** Parsing rules will change — especially while the legacy/eForms
 question is open — and re-fetching under a rate limit is expensive. `RawPayload` is stored as `jsonb`
@@ -344,6 +365,12 @@ trail, and a **profile** editor.
 cd web && npm install && npm run dev     # http://localhost:5173, proxies /api to the backend
 ```
 
+The **assess** tab is where Phase 2 surfaces: a Finnish query, notices ranked by meaning, and the
+passage that matched shown under each so a hit can be judged without opening it.
+
+![Semantic search results for a Finnish query, each notice showing its similarity score and the
+matching passage](docs/images/search.png)
+
 ### Nothing is hard-coded any more
 
 The scoring inputs — CPV codes, NUTS regions, contract value band, technologies, references — are
@@ -394,6 +421,12 @@ carrying its latest verdict, who recorded it, and how many decisions exist again
 tab expands the full history per assessment and offers *"change my mind"*, which writes a new row and
 leaves the old one visible underneath — the append-only design made operable rather than merely
 claimed.
+
+![A decided assessment showing an EDITED verdict, a "2 decisions" badge, and the decision history
+listing both the edit and the earlier rejection with their notes and author](docs/images/decided-audit-trail.png)
+
+A reviewer rejected this one, then went back and recorded an explicit NO-GO instead. Both rows
+survive, newest first, each with its note and its author; only the latest counts toward the metrics.
 
 Decisions record **who** made them. That was a hardcoded `"reviewer"` string until the reviewer name
 became a real field; there is still no auth, so the name is kept in `localStorage` and the decide
@@ -449,9 +482,11 @@ The model is not merely conservative, either: it returned GO on four high scorer
 (`EF-53362`, `EF-53424`, `EF-53480`, `EF-53262`), including a Swedish-language Åland notice, so the
 disagreements are discriminating rather than a blanket hedge.
 
-**Override rate is still 0% over a single human review**, and is the number that most needs a real
-reviewer working the queue. It is reported here because it is honest to show which metrics are thin,
-not because one review means anything.
+**Override rate is not yet a real measurement.** Three assessments have been ruled on, two of them
+while verifying that the decision path works end to end — so the 67% the header currently shows is
+mostly an artifact of testing, not a reviewer disagreeing with the agent. It is reported anyway,
+because a dashboard that hides which of its numbers are thin is worse than one that admits it. The
+number only starts meaning something once someone works the queue in earnest.
 
 ## What this would need to be a product
 
@@ -497,9 +532,10 @@ not cosmetic.
 
 ### Operational maturity
 
-- **No end-to-end tests.** The unit and component layers are covered — 65 on the .NET side, 21 in
-  Vitest around the approval flow — but nothing exercises the browser against a live API, so a
-  breakage in the seam between them would still go unnoticed until someone clicked.
+- **Thin end-to-end coverage.** 73 backend, 21 component and 8 Playwright tests cover the main paths,
+  but the E2E suite is read-only — it never records a decision, because the audit trail is
+  append-only and a test cannot clean up after itself. Exercising the write path properly needs a
+  disposable database per run, which is the next real step rather than more assertions.
 - **No cost controls.** Assessment costs real money per notice; a product needs budget caps and
   per-user quotas, not a good intention.
 - **No observability.** No telemetry, no error reporting.
@@ -539,8 +575,12 @@ turns out to be worth the demo value).
    ingestion runs in the container, but the documented no-Docker path would have produced deadlines
    three hours out, moving the deadline gate and its headroom points. The vendor example could not
    catch it: it omits `datePublished` entirely.
-6. Tune `Hilma:RequestsPerWindow` to the API's actual published limit — 30/min is a guess made
-   before any published figure was found.
+6. ~~Tune `Hilma:RequestsPerWindow` to the API's actual published limit~~ — addressed differently,
+   and better. No published figure was ever found, so rather than keep guessing at one, the retry
+   strategy now honours **`Retry-After`** on a 429: where the API states how long to wait, that
+   instruction wins over our own exponential backoff. `RequestsPerWindow` is demoted from "guess at
+   the published limit" to what it honestly is — a conservative client-side guard that keeps us well
+   under whatever the real limit turns out to be. A test pins it, and fails if the header is ignored.
 7. ~~Wire an embedding provider and measure retrieval~~ — done; numbers above.
 
 ## What it costs to run

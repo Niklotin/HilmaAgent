@@ -25,10 +25,20 @@ Editing a company profile does **not** re-score existing assessments.
 ## Verifying changes
 
 ```bash
-dotnet test                              # 72 tests; keep them green
-cd web && npm test                       # 21 frontend tests (Vitest)
+dotnet test                              # 73 tests; keep them green
+cd web && npm test                       # 26 frontend tests (Vitest)
 cd web && npm run build                  # frontend type check + production build
+cd web && npm run test:e2e               # 8 end-to-end tests (Playwright)
 ```
+
+The E2E suite drives the **container** at <http://localhost:5080>, not the Vite dev server, because
+the API image bakes in the built SPA and that is the topology that ships. Bring the stack up first.
+It is deliberately read-only: decisions are append-only, so a test that recorded one could not clean
+up after itself and every run would leave real rows in the audit trail.
+
+The README screenshots are generated, not hand-captured — `cd web && node shots.mjs` against the
+running container rewrites `docs/images/`. Regenerate them when the UI changes rather than letting
+them drift.
 
 **Do not use `npx tsc --noEmit` as the frontend check.** `web/tsconfig.json` is a solution file
 (`"files": []`, references only), so that command type-checks *nothing* and exits 0 no matter what is
