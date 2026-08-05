@@ -1,4 +1,4 @@
-using HilmaAgent.Api.Notices;
+﻿using HilmaAgent.Api.Notices;
 using HilmaAgent.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -15,15 +15,18 @@ app.UseStatusCodePages();
 if (app.Environment.IsDevelopment())
 {
     // Spec at /openapi/v1.json. Phases 1-3 are exercised through HilmaAgent.Api.http rather than
-    // a UI — deliberately API-first, no frontend until Phase 4.
+    // a UI â€” deliberately API-first, no frontend until Phase 4.
     app.MapOpenApi();
 }
 
 app.MapNoticeEndpoints();
 app.MapSearchEndpoints();
 app.MapAssessmentEndpoints();
+app.MapProfileEndpoints();
+app.MapApprovalEndpoints();
 
 app.Run();
 
 // Exposed so integration tests can host the API with WebApplicationFactory.
 public partial class Program;
+

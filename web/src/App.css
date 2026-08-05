@@ -1,0 +1,365 @@
+/* Deliberately plain. The value in this project is the logic, not the styling — and a screening
+   tool that looks like a spreadsheet is easier to trust than one that looks like a pitch deck. */
+
+:root {
+  --bg: #ffffff;
+  --fg: #1a1a1a;
+  --muted: #666;
+  --line: #ddd;
+  --flag: #b45309;
+  --flag-bg: #fffbeb;
+  --go: #15803d;
+  --nogo: #b91c1c;
+  --investigate: #b45309;
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  color-scheme: light dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #16181c;
+    --fg: #e8e8e8;
+    --muted: #9aa0a6;
+    --line: #2f333a;
+    --flag: #fbbf24;
+    --flag-bg: #2a2413;
+    --go: #4ade80;
+    --nogo: #f87171;
+    --investigate: #fbbf24;
+  }
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+}
+
+.app {
+  max-width: 60rem;
+  margin: 0 auto;
+  padding: 1.5rem 1rem 4rem;
+}
+
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  flex-wrap: wrap;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 1rem;
+}
+
+.topbar h1 {
+  font-size: 1.35rem;
+  margin: 0 0 0.25rem;
+}
+
+.topbar nav {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.topbar nav button {
+  text-transform: capitalize;
+}
+
+.topbar nav button.active {
+  border-color: var(--fg);
+  font-weight: 600;
+}
+
+.muted {
+  color: var(--muted);
+  font-size: 0.875rem;
+  margin: 0.25rem 0;
+}
+
+.error {
+  color: var(--nogo);
+  font-size: 0.875rem;
+}
+
+button {
+  font: inherit;
+  padding: 0.35rem 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+button:hover:not(:disabled) {
+  border-color: var(--fg);
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+button.link {
+  border: none;
+  padding: 0;
+  text-decoration: underline;
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+
+.metrics {
+  display: flex;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+  font-size: 0.875rem;
+  color: var(--muted);
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.metrics strong {
+  color: var(--fg);
+}
+
+/* --- card --- */
+
+.card {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 1rem;
+  margin: 1rem 0;
+}
+
+.card-flagged {
+  border-color: var(--flag);
+  background: var(--flag-bg);
+}
+
+.card header {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+.card h2 {
+  font-size: 1rem;
+  margin: 0;
+  line-height: 1.35;
+}
+
+.score {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.score strong {
+  font-size: 1.6rem;
+}
+
+.score span {
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+
+.verdicts {
+  display: flex;
+  gap: 1.25rem;
+  flex-wrap: wrap;
+  align-items: center;
+  font-size: 0.875rem;
+  margin: 0.75rem 0;
+}
+
+.verdict {
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.verdict-go { color: var(--go); }
+.verdict-no_go { color: var(--nogo); }
+.verdict-investigate { color: var(--investigate); }
+
+.flag {
+  color: var(--flag);
+  font-weight: 600;
+}
+
+.facts {
+  display: flex;
+  gap: 2rem;
+  flex-wrap: wrap;
+  margin: 0.5rem 0;
+  font-size: 0.875rem;
+}
+
+.facts dt {
+  color: var(--muted);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.facts dd {
+  margin: 0.1rem 0 0;
+}
+
+.reasoning {
+  line-height: 1.55;
+  margin: 0.75rem 0;
+}
+
+.citations {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.citation-chip {
+  font-size: 0.75rem;
+  padding: 0.15rem 0.45rem;
+}
+
+.citations blockquote {
+  flex-basis: 100%;
+  margin: 0.4rem 0 0;
+  padding: 0.5rem 0.75rem;
+  border-left: 3px solid var(--line);
+  font-size: 0.8125rem;
+  white-space: pre-wrap;
+  color: var(--muted);
+}
+
+.breakdown {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+  margin: 0.5rem 0;
+}
+
+.breakdown td {
+  padding: 0.3rem 0.5rem;
+  border-top: 1px solid var(--line);
+  vertical-align: top;
+}
+
+.breakdown .num {
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.breakdown .gate td {
+  color: var(--nogo);
+}
+
+textarea,
+input {
+  font: inherit;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.45rem;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  margin-top: 0.25rem;
+}
+
+.actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: 0.75rem;
+}
+
+.approve { border-color: var(--go); color: var(--go); }
+.reject { border-color: var(--nogo); color: var(--nogo); }
+
+.edit-group {
+  display: flex;
+  gap: 0.35rem;
+  align-items: center;
+  font-size: 0.8125rem;
+  color: var(--muted);
+  margin-left: auto;
+}
+
+/* --- assess tab --- */
+
+.runner {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 1rem;
+  margin: 1rem 0;
+}
+
+.runner h3 { margin: 0 0 0.5rem; font-size: 0.95rem; }
+
+.steps {
+  margin: 0;
+  padding-left: 1.2rem;
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+
+.step strong {
+  display: inline-block;
+  min-width: 5.5rem;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.step-scoring strong { color: var(--go); }
+.step-narrating strong { color: var(--investigate); }
+
+.notices {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+  margin-top: 1rem;
+}
+
+.notices th,
+.notices td {
+  text-align: left;
+  padding: 0.4rem 0.5rem;
+  border-bottom: 1px solid var(--line);
+  vertical-align: top;
+}
+
+.notices th {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+}
+
+/* --- profile --- */
+
+.profile label {
+  display: block;
+  margin: 0.9rem 0;
+  font-size: 0.875rem;
+}
+
+.grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+@media (max-width: 40rem) {
+  .grid-2 { grid-template-columns: 1fr; }
+  .card header { flex-direction: column; }
+  .score { text-align: left; }
+}
+
+code {
+  font-size: 0.85em;
+  opacity: 0.8;
+}

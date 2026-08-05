@@ -12,6 +12,7 @@ public class HilmaDbContext(DbContextOptions<HilmaDbContext> options) : DbContex
     public DbSet<NoticeChunk> NoticeChunks => Set<NoticeChunk>();
     public DbSet<CompanyProfile> CompanyProfiles => Set<CompanyProfile>();
     public DbSet<FitAssessment> FitAssessments => Set<FitAssessment>();
+    public DbSet<ApprovalDecision> ApprovalDecisions => Set<ApprovalDecision>();
     public DbSet<IngestionCheckpoint> IngestionCheckpoints => Set<IngestionCheckpoint>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -85,6 +86,22 @@ public class HilmaDbContext(DbContextOptions<HilmaDbContext> options) : DbContex
 
             assessment.HasIndex(a => a.NoticeId);
             assessment.HasIndex(a => a.CreatedAt);
+        });
+
+        modelBuilder.Entity<ApprovalDecision>(decision =>
+        {
+            decision.HasKey(d => d.Id);
+            decision.Property(d => d.Decision).HasMaxLength(16);
+            decision.Property(d => d.EditedRecommendation).HasMaxLength(16);
+            decision.Property(d => d.ReviewedBy).HasMaxLength(128);
+
+            decision.HasOne(d => d.Assessment)
+                .WithMany()
+                .HasForeignKey(d => d.AssessmentId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            decision.HasIndex(d => d.AssessmentId);
+            decision.HasIndex(d => d.DecidedAt);
         });
 
         modelBuilder.Entity<IngestionCheckpoint>(checkpoint =>

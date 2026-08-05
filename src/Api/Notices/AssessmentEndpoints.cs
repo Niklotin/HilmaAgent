@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using HilmaAgent.Core.Assessments;
 using HilmaAgent.Infrastructure.Assessments;
 using HilmaAgent.Infrastructure.Persistence;
@@ -121,11 +121,7 @@ public static class AssessmentEndpoints
         .WithName("GetAssessment")
         .WithSummary("One assessment, including its full score breakdown and citations.");
 
-        group.MapGet("/profiles", async (HilmaDbContext db, CancellationToken ct) =>
-            Results.Ok(await db.CompanyProfiles.AsNoTracking().ToListAsync(ct)))
-        .WithName("ListProfiles")
-        .WithSummary("Company profiles that notices are screened against.");
-
         return app;
     }
 }
+

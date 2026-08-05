@@ -31,6 +31,8 @@ public class AssessmentService(
     // assessment is correct without it, which is why it is allowed to be absent.
     Retrieval.NoticeSearchService? search = null)
 {
+    private static readonly JsonSerializerOptions BreakdownJson = new(JsonSerializerDefaults.Web);
+
     public async Task<FitAssessment> AssessAsync(
         string noticeId,
         Guid? profileId = null,
@@ -85,7 +87,10 @@ public class AssessmentService(
             NoticeId = notice.Id,
             ProfileId = profile.Id,
             DeterministicScore = breakdown.Total,
-            ScoreBreakdownJson = JsonSerializer.Serialize(breakdown),
+            // Web defaults, so the stored breakdown uses the same camelCase as every API response.
+            // Without this the column is PascalCase while the wire format is camelCase, and anything
+            // reading the stored JSON has to know which of the two it is looking at.
+            ScoreBreakdownJson = JsonSerializer.Serialize(breakdown, BreakdownJson),
             ScoreRecommendation = scoreRecommendation,
             ModelRecommendation = narration.Recommendation,
             RecommendationDisagreement = disagreement,

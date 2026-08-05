@@ -21,7 +21,7 @@ the deterministic score, the disagreement is surfaced rather than silently resol
 | 1 | Ingestion — Hilma client, Postgres, incremental worker | **done** — runs against the live API, both notice families |
 | 2 | Retrieval — chunking, embeddings, Qdrant | **done** — measured: hit@5 100%, MRR 0.875 over 300 notices |
 | 3 | Agent — deterministic scoring + LLM narration, assessments | **working end to end** against live notices |
-| 4 | React approval queue | not started |
+| 4 | React approval queue | **working** — queue, decisions, live SSE run, editable profile |
 | 5 | README polish, metrics | not started |
 
 **Phase 1 is done.** `docker compose up` on a clean volume migrates Postgres, searches the live
@@ -302,12 +302,65 @@ so this project deliberately uses two vendors for two different jobs.
 
 ### The company profile is fictional
 
-**Sammalkoski Digital Oy does not exist.** It was invented for this project rather than modelled on
-a real supplier: the notices are public records, but screening them against a real company's stated
+**Demo Firma Oy does not exist.** It was invented for this project rather than modelled on a real
+supplier: the notices are public records, but screening them against a real company's stated
 capabilities and publishing the resulting GO/NO-GO calls would be putting words in someone else's
-mouth. It is drawn as a mid-sized Helsinki consultancy doing public-sector .NET and Azure work —
-the profile most likely to find the IT-services notices in the corpus interesting, so the demo shows
-something rather than rejecting everything. Seeded at startup; edit it in `SeedProfile.cs`.
+mouth. It is drawn as a mid-sized Helsinki consultancy doing public-sector .NET and Azure work — the
+profile most likely to find the IT-services notices in the corpus interesting, so the demo shows
+something rather than rejecting everything. Edit it in the UI's profile tab.
+
+## The approval queue (Phase 4)
+
+`/web` — React 19 + TypeScript on Vite. Three views: the **queue**, an **assess** tab that runs a
+notice through the pipeline over SSE, and a **profile** editor.
+
+```bash
+cd web && npm install && npm run dev     # http://localhost:5173, proxies /api to the backend
+```
+
+### Nothing is hard-coded any more
+
+The scoring inputs — CPV codes, NUTS regions, contract value band, technologies, references — are
+edited in the UI and stored in Postgres. `SeedProfile.cs` writes starting values **once, when the
+table is empty**; it is a seed, not configuration, and never re-applies itself over the top. Change
+the CPV codes and the next assessment scores differently.
+
+Editing a profile deliberately does **not** re-score existing assessments. They record what was true
+when they were made; silently re-scoring history to match an edited profile would destroy the audit
+trail the project exists to produce.
+
+### Types are generated, not written
+
+`npm run gen-types` runs `openapi-typescript` against the API's own OpenAPI document. If an endpoint
+changes shape, the frontend stops compiling — which is the point. The one hand-written interface is
+the queue projection, which is an anonymous type server-side.
+
+*(The web app is pinned to TypeScript 5: `openapi-typescript` declares a `^5.x` peer and the Vite
+template now scaffolds TS 6. A React SPA needs nothing from TS 6, and an unresolved peer conflict is
+the kind of thing that breaks quietly later.)*
+
+### What the card shows, and why
+
+Score and model verdict sit **side by side**, never merged. Where they differ the card says
+*"disagreement — you decide"* and highlights: the reviewer is being asked to break a tie, and showing
+only one side would be deciding on their behalf. The score breakdown expands rule by rule, gates and
+warnings included. Citations expand to the passage the model actually pointed at.
+
+Decisions are **append-only** — changing your mind writes a new row. An audit trail you can quietly
+revise is not an audit trail.
+
+### Measured outcomes
+
+`GET /api/metrics`, shown in the header bar:
+
+- **override rate** — how often a human changed the agent's answer. The headline quality number.
+- **model vs score disagreement rate** — a separate signal: how often the model and the deterministic
+  rules reached different conclusions from the same inputs, independent of what the human then did.
+
+Both were non-zero within minutes of the UI existing. Of the first five assessments, two were
+model/score disagreements, and in both the model was arguing something the rules structurally cannot
+encode — a SaaS product versus a custom build, and a land-drainage project a software consultancy has
+no business bidding on.
 
 ## Open decisions
 

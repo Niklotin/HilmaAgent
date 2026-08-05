@@ -3,16 +3,18 @@ using HilmaAgent.Core.Profiles;
 namespace HilmaAgent.Infrastructure.Profiles;
 
 /// <summary>
-/// The demo company profile.
+/// Starting values for the company profile, written once when the table is empty.
 /// </summary>
 /// <remarks>
-/// <b>Sammalkoski Digital Oy is fictional.</b> It was invented for this project rather than modelled
-/// on a real supplier — screening real notices against a real company's stated capabilities, and
+/// <b>Demo Firma Oy is fictional.</b> It was invented for this project rather than modelled on a
+/// real supplier — screening real notices against a real company's stated capabilities, and
 /// publishing the resulting GO/NO-GO calls, would be putting words in someone else's mouth. The
 /// notices are public records; the company reading them is made up.
 /// <para>It is drawn as a mid-sized Helsinki software consultancy because that is the profile most
 /// likely to find the IT-services notices in the corpus interesting, which makes the demo show
 /// something rather than reject everything.</para>
+/// <para>This is a <i>seed</i>, not configuration. Once written, the profile is edited through
+/// <c>PUT /api/profiles/{id}</c> and the UI; nothing re-applies these values over the top.</para>
 /// </remarks>
 public static class SeedProfile
 {
@@ -21,7 +23,7 @@ public static class SeedProfile
     public static CompanyProfile Create() => new()
     {
         Id = Id,
-        Name = "Sammalkoski Digital Oy",
+        Name = "Demo Firma Oy",
         Description =
             "Fictional company, invented for this demo. A Helsinki-based software consultancy of about " +
             "35 people, specialising in custom business systems and integrations for Finnish public-sector " +

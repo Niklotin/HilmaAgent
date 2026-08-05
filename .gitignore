@@ -488,3 +488,8 @@ $RECYCLE.BIN/
 # Raw API samples pulled from the portal console (may be large; curate into tests/Fixtures instead)
 samples/
 
+
+# Frontend
+web/node_modules/
+web/dist/
+
