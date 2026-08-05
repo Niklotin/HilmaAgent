@@ -1,4 +1,5 @@
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
+import { renderWithLang } from '../test-utils'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { DecidedList } from './DecidedList'
@@ -52,7 +53,7 @@ describe('DecidedList', () => {
   it('shows the verdict the reviewer stood behind, and who recorded it', async () => {
     decided.mockResolvedValue([base])
 
-    render(<DecidedList reviewer="Niko" onChanged={vi.fn()} />)
+    renderWithLang(<DecidedList reviewer="Niko" onChanged={vi.fn()} />)
 
     expect(await screen.findByText('REJECTED')).toBeInTheDocument()
     expect(screen.getByText('Niko')).toBeInTheDocument()
@@ -62,7 +63,7 @@ describe('DecidedList', () => {
   it('says plainly when nothing has been decided yet', async () => {
     decided.mockResolvedValue([])
 
-    render(<DecidedList reviewer="Niko" onChanged={vi.fn()} />)
+    renderWithLang(<DecidedList reviewer="Niko" onChanged={vi.fn()} />)
 
     expect(await screen.findByText(/No decisions recorded yet/)).toBeInTheDocument()
   })
@@ -70,7 +71,7 @@ describe('DecidedList', () => {
   it('flags an assessment that has been decided more than once', async () => {
     decided.mockResolvedValue([{ ...base, revisionCount: 2 }])
 
-    render(<DecidedList reviewer="Niko" onChanged={vi.fn()} />)
+    renderWithLang(<DecidedList reviewer="Niko" onChanged={vi.fn()} />)
 
     expect(await screen.findByText('2 decisions')).toBeInTheDocument()
   })
@@ -91,7 +92,7 @@ describe('DecidedList', () => {
     ])
 
     const onChanged = vi.fn()
-    render(<DecidedList reviewer="Niko" onChanged={onChanged} />)
+    renderWithLang(<DecidedList reviewer="Niko" onChanged={onChanged} />)
 
     await user.click(await screen.findByRole('button', { name: /Change my mind/ }))
     const revisit = document.querySelector('.revisit') as HTMLElement
@@ -115,7 +116,7 @@ describe('DecidedList', () => {
     const user = userEvent.setup()
     decided.mockResolvedValue([base])
 
-    render(<DecidedList reviewer="" onChanged={vi.fn()} />)
+    renderWithLang(<DecidedList reviewer="" onChanged={vi.fn()} />)
 
     await user.click(await screen.findByRole('button', { name: /Change my mind/ }))
 

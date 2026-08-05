@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { api, parseBreakdown, type QueueItem } from '../api/client'
 import { useDraftNote } from '../drafts'
+import { useT } from '../i18n'
+import { Reasoning } from './Reasoning'
 
 const LABELS: Record<string, string> = {
   GO: 'GO',
@@ -28,6 +30,7 @@ export function AssessmentCard({
   reviewer: string
   onDecided: () => void
 }) {
+  const t = useT()
   const { note, setNote, clearNote } = useDraftNote(item.id)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -61,6 +64,10 @@ export function AssessmentCard({
     setBreakdownOpen(!breakdownOpen)
   }
 
+  function toggleCitation(chunkId: string) {
+    setOpenCitation(openCitation === chunkId ? null : chunkId)
+  }
+
   const deadline = item.submissionDeadline ? new Date(item.submissionDeadline) : null
   const daysLeft = deadline ? Math.ceil((deadline.getTime() - Date.now()) / 86_400_000) : null
 
@@ -70,10 +77,10 @@ export function AssessmentCard({
         <div className="card-title">
           <h2>{item.noticeTitle ?? item.noticeId}</h2>
           <p className="muted">
-            {item.buyerName ?? 'Buyer not stated'} · <code>{item.noticeId}</code>
+            {item.buyerName ?? t('card.noBuyer')} · <code>{item.noticeId}</code>
           </p>
         </div>
-        <div className="score" title="Computed in code, never by the model">
+        <div className="score" title={t('card.scoreHint')}>
           <strong>{item.deterministicScore}</strong>
           <span>/100</span>
         </div>
@@ -81,65 +88,70 @@ export function AssessmentCard({
 
       <div className="verdicts">
         <span>
-          Score says <Verdict value={item.scoreRecommendation} />
+          {t('card.scoreSays')} <Verdict value={item.scoreRecommendation} />
         </span>
         <span>
-          Model says <Verdict value={item.modelRecommendation} />
+          {t('card.modelSays')} <Verdict value={item.modelRecommendation} />
         </span>
         {item.recommendationDisagreement && (
-          <span className="flag" title="The model reached a different conclusion from the score. Neither was overruled.">
-            ⚠ disagreement — you decide
+          <span className="flag" title={t('card.disagreementHint')}>
+            {t('card.disagreement')}
           </span>
         )}
       </div>
 
       <dl className="facts">
         <div>
-          <dt>Deadline</dt>
+          <dt>{t('card.deadline')}</dt>
           <dd>
             {deadline ? deadline.toISOString().slice(0, 10) : '—'}
             {daysLeft !== null && daysLeft >= 0 && <span className="muted"> ({daysLeft}d)</span>}
           </dd>
         </div>
         <div>
-          <dt>Value</dt>
+          <dt>{t('card.value')}</dt>
           <dd>
             {item.estimatedValue != null
               ? `${item.estimatedValue.toLocaleString('fi-FI')} ${item.currency ?? ''}`.trim()
-              : 'not stated'}
+              : t('card.valueMissing')}
           </dd>
         </div>
         <div>
-          <dt>Model</dt>
+          <dt>{t('card.model')}</dt>
           <dd className="muted">{item.modelId ?? '—'}</dd>
         </div>
       </dl>
 
-      <p className="reasoning">{item.reasoning}</p>
+      <Reasoning
+        text={item.reasoning}
+        citations={item.citations}
+        openCitation={openCitation}
+        onToggleCitation={toggleCitation}
+      />
 
       {item.citations.length > 0 && (
         <div className="citations">
-          <span className="muted">Cited passages:</span>
+          <span className="muted">{t('card.citations')}</span>
           {item.citations.map((citation, index) => (
             <button
               key={citation.chunkId}
               className="citation-chip"
               aria-expanded={openCitation === citation.chunkId}
-              onClick={() => setOpenCitation(openCitation === citation.chunkId ? null : (citation.chunkId ?? null))}
+              onClick={() => toggleCitation(citation.chunkId!)}
             >
               [{index + 1}] {citation.section}
             </button>
           ))}
           {openCitation && (
             <blockquote>
-              {item.citations.find((c) => c.chunkId === openCitation)?.quote ?? '(no excerpt stored)'}
+              {item.citations.find((c) => c.chunkId === openCitation)?.quote ?? t('card.noExcerpt')}
             </blockquote>
           )}
         </div>
       )}
 
       <button className="link" onClick={toggleBreakdown} aria-expanded={breakdownOpen}>
-        {breakdownOpen ? 'Hide' : 'Show'} score breakdown
+        {breakdownOpen ? t('card.hideBreakdown') : t('card.showBreakdown')}
       </button>
 
       {breakdownOpen && breakdown && (
@@ -173,7 +185,7 @@ export function AssessmentCard({
       )}
 
       <textarea
-        placeholder="Why? (optional — but this note is the most useful column when reading back what went wrong)"
+        placeholder={t('card.notePlaceholder')}
         value={note}
         onChange={(e) => setNote(e.target.value)}
         rows={2}
@@ -183,17 +195,17 @@ export function AssessmentCard({
 
       {/* A decision with no author is not worth recording, so the buttons wait for a name rather
           than silently attributing the row to nobody. */}
-      {!reviewer && <p className="muted">Set your name in the header to record a decision.</p>}
+      {!reviewer && <p className="muted">{t('reviewer.required')}</p>}
 
       <footer className="actions">
         <button disabled={busy || !reviewer} onClick={() => decide('APPROVED')} className="approve">
-          Approve
+          {t('card.approve')}
         </button>
         <button disabled={busy || !reviewer} onClick={() => decide('REJECTED')} className="reject">
-          Reject
+          {t('card.reject')}
         </button>
         <span className="edit-group">
-          Edit to:
+          {t('card.editTo')}
           {['GO', 'INVESTIGATE', 'NO_GO']
             .filter((value) => value !== item.modelRecommendation)
             .map((value) => (

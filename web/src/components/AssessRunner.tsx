@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useT } from '../i18n'
 
 interface ProgressEvent {
   step: string
@@ -16,8 +17,10 @@ interface ProgressEvent {
 export function AssessRunner({ noticeId, onFinished }: { noticeId: string; onFinished: () => void }) {
   const [events, setEvents] = useState<ProgressEvent[]>([])
   const [error, setError] = useState<string | null>(null)
+  const [lost, setLost] = useState(false)
   const [done, setDone] = useState(false)
   const sourceRef = useRef<EventSource | null>(null)
+  const t = useT()
 
   useEffect(() => {
     const source = new EventSource(`/api/assess/${encodeURIComponent(noticeId)}/stream`)
@@ -35,7 +38,10 @@ export function AssessRunner({ noticeId, onFinished }: { noticeId: string; onFin
 
     source.addEventListener('error', (e) => {
       const data = (e as MessageEvent).data
-      setError(data ? (JSON.parse(data) as { error: string }).error : 'Connection lost.')
+      // Translated at render rather than here: pulling `t` into the effect would tear down and
+      // reopen the stream every time the interface language changed.
+      if (data) setError((JSON.parse(data) as { error: string }).error)
+      else setLost(true)
       source.close()
     })
 
@@ -45,7 +51,7 @@ export function AssessRunner({ noticeId, onFinished }: { noticeId: string; onFin
   return (
     <div className="runner">
       <h3>
-        Assessing <code>{noticeId}</code>
+        {t('runner.assessing')} <code>{noticeId}</code>
       </h3>
       <ol className="steps">
         {events.map((event, index) => (
@@ -55,7 +61,8 @@ export function AssessRunner({ noticeId, onFinished }: { noticeId: string; onFin
         ))}
       </ol>
       {error && <p className="error">{error}</p>}
-      {done && <p className="muted">Done — it is now at the top of the queue.</p>}
+      {lost && <p className="error">{t('runner.lost')}</p>}
+      {done && <p className="muted">{t('runner.done')}</p>}
     </div>
   )
 }

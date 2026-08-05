@@ -42,6 +42,9 @@ public class SearchIndexNoticeParser
             Language = null,
             IsLatest = null,
             IsCancelled = Bool(root, "isCancelled"),
+            // Where the buyer actually takes bids. Turns an approved assessment into something a
+            // reviewer can act on instead of re-finding the notice by hand.
+            ProcurementDocumentsUrl = Str(root, "procurementDocumentsUrl"),
             Source = NoticeSource.EForms,
             RawPayload = reference.Document,
             FetchedAt = DateTimeOffset.UtcNow,

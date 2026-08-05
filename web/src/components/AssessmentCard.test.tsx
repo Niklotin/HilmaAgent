@@ -1,4 +1,5 @@
-import { render, screen, within } from '@testing-library/react'
+import { screen, within } from '@testing-library/react'
+import { renderWithLang } from '../test-utils'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { AssessmentCard } from './AssessmentCard'
@@ -37,7 +38,7 @@ beforeEach(() => decide.mockReset())
 
 describe('AssessmentCard', () => {
   it('shows the score and the model verdict side by side, never merged', () => {
-    const { container } = render(<AssessmentCard item={item} reviewer="Niko" onDecided={vi.fn()} />)
+    const { container } = renderWithLang(<AssessmentCard item={item} reviewer="Niko" onDecided={vi.fn()} />)
 
     // Scoped to the verdict row: "GO" also appears as an edit option further down the card.
     const verdicts = within(container.querySelector('.verdicts')!)
@@ -48,13 +49,13 @@ describe('AssessmentCard', () => {
   })
 
   it('says plainly when the model and the score disagree', () => {
-    render(<AssessmentCard item={item} reviewer="Niko" onDecided={vi.fn()} />)
+    renderWithLang(<AssessmentCard item={item} reviewer="Niko" onDecided={vi.fn()} />)
 
     expect(screen.getByText(/disagreement — you decide/)).toBeInTheDocument()
   })
 
   it('does not claim a disagreement when there is none', () => {
-    render(
+    renderWithLang(
       <AssessmentCard
         item={{ ...item, modelRecommendation: 'GO', recommendationDisagreement: false }}
         reviewer="Niko"
@@ -67,7 +68,7 @@ describe('AssessmentCard', () => {
 
   // The audit trail is the point of the project, and a row with no author is not evidence.
   it('refuses to record a decision until a reviewer is named', () => {
-    render(<AssessmentCard item={item} reviewer="" onDecided={vi.fn()} />)
+    renderWithLang(<AssessmentCard item={item} reviewer="" onDecided={vi.fn()} />)
 
     expect(screen.getByRole('button', { name: 'Approve' })).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Reject' })).toBeDisabled()
@@ -79,7 +80,7 @@ describe('AssessmentCard', () => {
     const onDecided = vi.fn()
     decide.mockResolvedValue({})
 
-    render(<AssessmentCard item={item} reviewer="Niko" onDecided={onDecided} />)
+    renderWithLang(<AssessmentCard item={item} reviewer="Niko" onDecided={onDecided} />)
 
     await user.type(screen.getByRole('textbox'), 'Licence resale, not development work.')
     await user.click(screen.getByRole('button', { name: 'Approve' }))
@@ -97,7 +98,7 @@ describe('AssessmentCard', () => {
     const user = userEvent.setup()
     decide.mockResolvedValue({})
 
-    render(<AssessmentCard item={item} reviewer="Niko" onDecided={vi.fn()} />)
+    renderWithLang(<AssessmentCard item={item} reviewer="Niko" onDecided={vi.fn()} />)
 
     await user.click(screen.getByRole('button', { name: 'INVESTIGATE' }))
 
@@ -109,7 +110,7 @@ describe('AssessmentCard', () => {
 
   // Offering the verdict the model already gave would be inviting a no-op "override".
   it('does not offer the model’s own recommendation as an edit', () => {
-    const { container } = render(<AssessmentCard item={item} reviewer="Niko" onDecided={vi.fn()} />)
+    const { container } = renderWithLang(<AssessmentCard item={item} reviewer="Niko" onDecided={vi.fn()} />)
 
     // Array.from rather than a spread: this tsconfig's lib omits DOM.Iterable.
     const options = Array.from(container.querySelectorAll('.edit-group button'), (b) => b.textContent)

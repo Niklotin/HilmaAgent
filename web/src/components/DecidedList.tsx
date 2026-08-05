@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api, type ApprovalDecision, type DecidedItem } from '../api/client'
+import { useT, type Translate } from '../i18n'
 
 const LABELS: Record<string, string> = { GO: 'GO', NO_GO: 'NO-GO', INVESTIGATE: 'INVESTIGATE' }
 
@@ -22,6 +23,7 @@ function when(iso: string) {
 export function DecidedList({ reviewer, onChanged }: { reviewer: string; onChanged: () => void }) {
   const [items, setItems] = useState<DecidedItem[] | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const t = useT()
 
   const load = useCallback(async () => {
     try {
@@ -44,18 +46,15 @@ export function DecidedList({ reviewer, onChanged }: { reviewer: string; onChang
   }, [load, onChanged])
 
   if (error) return <p className="error">{error}</p>
-  if (!items) return <p className="muted">Loading…</p>
+  if (!items) return <p className="muted">{t('common.loading')}</p>
   if (items.length === 0)
-    return <p className="muted">No decisions recorded yet. Rule on something in the queue and it appears here.</p>
+    return <p className="muted">{t('decided.empty')}</p>
 
   return (
     <main>
-      <p className="muted">
-        {items.length} decided. Decisions are append-only — revisiting one records a new verdict and
-        keeps the old.
-      </p>
+      <p className="muted">{t('decided.summary', { n: items.length })}</p>
       {items.map((item) => (
-        <DecidedCard key={item.id} item={item} reviewer={reviewer} onChanged={handleChanged} />
+        <DecidedCard key={item.id} item={item} reviewer={reviewer} onChanged={handleChanged} t={t} />
       ))}
     </main>
   )
@@ -65,10 +64,12 @@ function DecidedCard({
   item,
   reviewer,
   onChanged,
+  t,
 }: {
   item: DecidedItem
   reviewer: string
   onChanged: () => void
+  t: Translate
 }) {
   const [history, setHistory] = useState<ApprovalDecision[] | null>(null)
   const [historyOpen, setHistoryOpen] = useState(false)
@@ -110,10 +111,10 @@ function DecidedCard({
         <div className="card-title">
           <h2>{item.noticeTitle ?? item.noticeId}</h2>
           <p className="muted">
-            {item.buyerName ?? 'Buyer not stated'} · <code>{item.noticeId}</code>
+            {item.buyerName ?? t('card.noBuyer')} · <code>{item.noticeId}</code>
           </p>
         </div>
-        <div className="score" title="Computed in code, never by the model">
+        <div className="score" title={t('card.scoreHint')}>
           <strong>{item.deterministicScore}</strong>
           <span>/100</span>
         </div>
@@ -121,24 +122,24 @@ function DecidedCard({
 
       <div className="verdicts">
         <span>
-          Score said <Verdict value={item.scoreRecommendation} />
+          {t('decided.scoreSaid')} <Verdict value={item.scoreRecommendation} />
         </span>
         <span>
-          Model said <Verdict value={item.modelRecommendation} />
+          {t('decided.modelSaid')} <Verdict value={item.modelRecommendation} />
         </span>
         <span>
-          Reviewer stood behind <Verdict value={item.effectiveRecommendation} />
+          {t('decided.stoodBehind')} <Verdict value={item.effectiveRecommendation} />
         </span>
       </div>
 
       <div className="decision-strip">
         <span className={`decision decision-${item.decision.toLowerCase()}`}>{item.decision}</span>
         <span className="muted">
-          by <strong>{item.reviewedBy || 'unattributed'}</strong> · {when(item.decidedAt)}
+          {t('decided.by')} <strong>{item.reviewedBy || t('decided.unattributed')}</strong> · {when(item.decidedAt)}
         </span>
         {item.revisionCount > 1 && (
-          <span className="flag" title="This assessment has been decided more than once.">
-            {item.revisionCount} decisions
+          <span className="flag" title={t('decided.revisionsHint')}>
+            {t('decided.revisions', { n: item.revisionCount })}
           </span>
         )}
       </div>
@@ -146,15 +147,15 @@ function DecidedCard({
       {item.reviewerNote ? (
         <blockquote className="note">{item.reviewerNote}</blockquote>
       ) : (
-        <p className="muted">No note recorded.</p>
+        <p className="muted">{t('decided.noNote')}</p>
       )}
 
       <div className="decided-actions">
         <button className="link" onClick={toggleHistory} aria-expanded={historyOpen}>
-          {historyOpen ? 'Hide' : 'Show'} decision history
+          {historyOpen ? t('decided.hideHistory') : t('decided.showHistory')}
         </button>
         <button className="link" onClick={() => setRevisiting(!revisiting)} aria-expanded={revisiting}>
-          {revisiting ? 'Cancel' : 'Change my mind'}
+          {revisiting ? t('decided.cancel') : t('decided.changeMind')}
         </button>
       </div>
 
@@ -166,7 +167,7 @@ function DecidedCard({
                 <td>{decision.decision}</td>
                 <td className="muted">{decision.editedRecommendation ?? '—'}</td>
                 <td className="muted">
-                  {decision.reviewerNote || <em>no note</em>} — {decision.reviewedBy || 'unattributed'},{' '}
+                  {decision.reviewerNote || <em>{t('decided.noNoteShort')}</em>} — {decision.reviewedBy || t('decided.unattributed')},{' '}
                   {decision.decidedAt ? when(decision.decidedAt) : '—'}
                 </td>
               </tr>
@@ -177,22 +178,22 @@ function DecidedCard({
 
       {revisiting && (
         <div className="revisit">
-          {!reviewer && <p className="error">Set your name in the header before recording a decision.</p>}
+          {!reviewer && <p className="error">{t('reviewer.required')}</p>}
           <textarea
-            placeholder="Why the change of mind? This is what the history will show."
+            placeholder={t('decided.revisitPlaceholder')}
             value={note}
             onChange={(e) => setNote(e.target.value)}
             rows={2}
           />
           <div className="actions">
             <button disabled={busy || !reviewer} onClick={() => revisit('APPROVED')} className="approve">
-              Approve
+              {t('card.approve')}
             </button>
             <button disabled={busy || !reviewer} onClick={() => revisit('REJECTED')} className="reject">
-              Reject
+              {t('card.reject')}
             </button>
             <span className="edit-group">
-              Edit to:
+              {t('card.editTo')}
               {['GO', 'INVESTIGATE', 'NO_GO'].map((value) => (
                 <button key={value} disabled={busy || !reviewer} onClick={() => revisit('EDITED', value)}>
                   {LABELS[value]}

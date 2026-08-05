@@ -5,14 +5,26 @@ import { AssessRunner } from './components/AssessRunner'
 import { DecidedList } from './components/DecidedList'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { ProfileEditor } from './components/ProfileEditor'
+import { Shortlist } from './components/Shortlist'
+import { useLanguage, useT, type Lang, type StringKey } from './i18n'
 import { useReviewer } from './reviewer'
 import './App.css'
 
-type Tab = 'queue' | 'assess' | 'decided' | 'profile'
+type Tab = 'queue' | 'assess' | 'shortlist' | 'decided' | 'profile'
+
+const TAB_KEYS: Record<Tab, StringKey> = {
+  queue: 'nav.queue',
+  assess: 'nav.assess',
+  shortlist: 'nav.shortlist',
+  decided: 'nav.decided',
+  profile: 'nav.profile',
+}
 
 function MetricsBar({ metrics }: { metrics: Metrics | null }) {
+  const t = useT()
+
   if (!metrics) return null
-  if (!metrics.assessments) return <p className="muted">No assessments yet — run one from the Assess tab.</p>
+  if (!metrics.assessments) return <p className="muted">{t('metrics.none')}</p>
 
   const percent = (value: number | null | undefined) =>
     value == null ? '—' : `${Math.round(value * 100)}%`
@@ -20,18 +32,33 @@ function MetricsBar({ metrics }: { metrics: Metrics | null }) {
   return (
     <div className="metrics">
       <span>
-        <strong>{metrics.assessments}</strong> assessed
+        <strong>{metrics.assessments}</strong> {t('metrics.assessed')}
       </span>
       <span>
-        <strong>{metrics.pending}</strong> awaiting review
+        <strong>{metrics.pending}</strong> {t('metrics.pending')}
       </span>
-      <span title="How often a human changed the agent's answer. The headline quality number.">
-        override rate <strong>{percent(metrics.overrideRate)}</strong>
+      <span title={t('metrics.overrideHint')}>
+        {t('metrics.overrideRate')} <strong>{percent(metrics.overrideRate)}</strong>
       </span>
-      <span title="How often the model and the deterministic score reached different conclusions.">
-        model vs score <strong>{percent(metrics.modelScoreDisagreementRate)}</strong>
+      <span title={t('metrics.disagreementHint')}>
+        {t('metrics.modelVsScore')} <strong>{percent(metrics.modelScoreDisagreementRate)}</strong>
       </span>
     </div>
+  )
+}
+
+/** Finnish by default; English kept because the project is read by people who do not read Finnish. */
+function LanguagePicker() {
+  const { lang, setLang, t } = useLanguage()
+
+  return (
+    <label className="reviewer">
+      {t('lang.label')}
+      <select value={lang} onChange={(e) => setLang(e.target.value as Lang)} aria-label={t('lang.label')}>
+        <option value="fi">Suomi</option>
+        <option value="en">English</option>
+      </select>
+    </label>
   )
 }
 
@@ -42,6 +69,7 @@ export default function App() {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const { reviewer, setReviewer } = useReviewer()
+  const t = useT()
 
   const [sort, setSort] = useState<QueueSort>('disagreement')
   const [disagreementsOnly, setDisagreementsOnly] = useState(false)
@@ -71,26 +99,24 @@ export default function App() {
     <div className="app">
       <header className="topbar">
         <div>
-          <h1>Hilma screening</h1>
-          <p className="muted">
-            Scores computed in code. The model writes the justification and may disagree — it never
-            overrules.
-          </p>
+          <h1>{t('app.title')}</h1>
+          <p className="muted">{t('app.tagline')}</p>
         </div>
         <div className="topbar-right">
           {/* Every decision records an author. No auth yet, so the name is kept locally — but an
               unattributed audit trail is not an audit trail, so it is asked for rather than faked. */}
           <label className="reviewer">
-            Reviewer
+            {t('reviewer.label')}
             <input
               value={reviewer}
-              placeholder="your name"
+              placeholder={t('reviewer.placeholder')}
               onChange={(e) => setReviewer(e.target.value)}
-              aria-label="Your name, recorded against every decision"
+              aria-label={t('reviewer.aria')}
             />
           </label>
-          <nav role="tablist" aria-label="Views">
-            {(['queue', 'assess', 'decided', 'profile'] as Tab[]).map((value) => (
+          <LanguagePicker />
+          <nav role="tablist" aria-label={t('nav.label')}>
+            {(['queue', 'assess', 'shortlist', 'decided', 'profile'] as Tab[]).map((value) => (
               <button
                 key={value}
                 role="tab"
@@ -98,7 +124,9 @@ export default function App() {
                 className={tab === value ? 'active' : ''}
                 onClick={() => setTab(value)}
               >
-                {value === 'queue' ? `Queue${queue.length ? ` (${queue.length})` : ''}` : value}
+                {value === 'queue'
+                  ? `${t('nav.queue')}${queue.length ? ` (${queue.length})` : ''}`
+                  : t(TAB_KEYS[value])}
               </button>
             ))}
           </nav>
@@ -113,11 +141,11 @@ export default function App() {
         <main>
           <div className="filters">
             <label>
-              Sort by
+              {t('filters.sortBy')}
               <select value={sort} onChange={(e) => setSort(e.target.value as QueueSort)}>
-                <option value="disagreement">disagreement, then score</option>
-                <option value="score">score</option>
-                <option value="deadline">deadline — closing soonest</option>
+                <option value="disagreement">{t('filters.sortDisagreement')}</option>
+                <option value="score">{t('filters.sortScore')}</option>
+                <option value="deadline">{t('filters.sortDeadline')}</option>
               </select>
             </label>
             <label className="checkbox">
@@ -126,10 +154,10 @@ export default function App() {
                 checked={disagreementsOnly}
                 onChange={(e) => setDisagreementsOnly(e.target.checked)}
               />
-              disagreements only
+              {t('filters.disagreementsOnly')}
             </label>
             <label>
-              Min score
+              {t('filters.minScore')}
               <input
                 type="number"
                 min={0}
@@ -141,12 +169,10 @@ export default function App() {
             </label>
           </div>
 
-          {loading && <p className="muted">Loading…</p>}
+          {loading && <p className="muted">{t('common.loading')}</p>}
           {!loading && queue.length === 0 && (
             <p className="muted">
-              {disagreementsOnly || minScore > 0
-                ? 'Nothing matches these filters. Widen them to see the rest of the queue.'
-                : 'Nothing awaiting review. Every assessment has a decision recorded against it.'}
+              {disagreementsOnly || minScore > 0 ? t('queue.emptyFiltered') : t('queue.empty')}
             </p>
           )}
           {queue.map((item) => (
@@ -158,6 +184,7 @@ export default function App() {
       )}
 
       {tab === 'assess' && <AssessTab onFinished={refresh} />}
+      {tab === 'shortlist' && <Shortlist />}
       {tab === 'decided' && <DecidedList reviewer={reviewer} onChanged={refresh} />}
       {tab === 'profile' && <ProfileEditor />}
     </div>
@@ -176,6 +203,7 @@ function AssessTab({ onFinished }: { onFinished: () => void }) {
   const [results, setResults] = useState<SearchResult[] | null>(null)
   const [searching, setSearching] = useState(false)
   const [searchError, setSearchError] = useState<string | null>(null)
+  const t = useT()
 
   useEffect(() => {
     api.notices({ take: 30, openOnly: true }).then((r) => setNotices(r.items)).catch(() => setNotices([]))
@@ -212,19 +240,19 @@ function AssessTab({ onFinished }: { onFinished: () => void }) {
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search notices by meaning — in Finnish, e.g. ohjelmistokehitys ja integraatiot"
-          aria-label="Semantic search query"
+          placeholder={t('assess.searchPlaceholder')}
+          aria-label={t('assess.searchAria')}
         />
         <label className="checkbox">
           <input type="checkbox" checked={openOnly} onChange={(e) => setOpenOnly(e.target.checked)} />
-          open only
+          {t('assess.openOnly')}
         </label>
         <button type="submit" disabled={searching || !query.trim()}>
-          {searching ? 'Searching…' : 'Search'}
+          {searching ? t('assess.searching') : t('assess.search')}
         </button>
         {results && (
           <button type="button" className="link" onClick={clear}>
-            clear
+            {t('assess.clear')}
           </button>
         )}
       </form>
@@ -233,33 +261,26 @@ function AssessTab({ onFinished }: { onFinished: () => void }) {
 
       {results ? (
         <>
-          <p className="muted">
-            {results.length} notice{results.length === 1 ? '' : 's'} by semantic similarity. Filters run
-            inside the vector search, so the count is not shrunk after the fact.
-          </p>
-          {results.length === 0 && (
-            <p className="muted">
-              Nothing matched. If the corpus was just ingested it may not be embedded yet — POST
-              /api/search/index.
-            </p>
-          )}
+          <p className="muted">{t('assess.resultCount', { n: results.length })}</p>
+          {results.length === 0 && <p className="muted">{t('assess.noResults')}</p>}
           {results.map((result) => (
             <article className="result" key={result.noticeId}>
               <header>
                 <div>
                   <h3>{result.title ?? result.noticeId}</h3>
                   <p className="muted">
-                    {result.buyerName ?? 'Buyer not stated'} · <code>{result.noticeId}</code> ·{' '}
+                    {result.buyerName ?? t('card.noBuyer')} · <code>{result.noticeId}</code> ·{' '}
                     {result.cpvCodes.slice(0, 4).join(', ')}
-                    {result.submissionDeadline && ` · closes ${result.submissionDeadline.slice(0, 10)}`}
+                    {result.submissionDeadline &&
+                      ` · ${t('assess.closes')} ${result.submissionDeadline.slice(0, 10)}`}
                   </p>
                 </div>
                 <div className="result-actions">
-                  <span className="similarity" title="Best-matching chunk's similarity. Comparable within this result set only.">
+                  <span className="similarity" title={t('assess.similarityHint')}>
                     {result.score.toFixed(3)}
                   </span>
                   <button onClick={() => setRunning(result.noticeId)} disabled={running === result.noticeId}>
-                    Assess
+                    {t('assess.run')}
                   </button>
                 </div>
               </header>
@@ -277,10 +298,10 @@ function AssessTab({ onFinished }: { onFinished: () => void }) {
           <table className="notices">
             <thead>
               <tr>
-                <th>Notice</th>
-                <th>Buyer</th>
-                <th>CPV</th>
-                <th>Deadline</th>
+                <th>{t('assess.notice')}</th>
+                <th>{t('assess.buyer')}</th>
+                <th>{t('assess.cpv')}</th>
+                <th>{t('assess.deadline')}</th>
                 <th />
               </tr>
             </thead>
@@ -293,14 +314,14 @@ function AssessTab({ onFinished }: { onFinished: () => void }) {
                   <td className="muted">{notice.submissionDeadline?.slice(0, 10) ?? '—'}</td>
                   <td>
                     <button onClick={() => setRunning(notice.id)} disabled={running === notice.id}>
-                      Assess
+                      {t('assess.run')}
                     </button>
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
-          {notices.length === 0 && <p className="muted">No open notices ingested yet.</p>}
+          {notices.length === 0 && <p className="muted">{t('assess.empty')}</p>}
         </>
       )}
     </main>

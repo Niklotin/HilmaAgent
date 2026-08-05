@@ -74,6 +74,9 @@ schedule. API on <http://localhost:5080>.
 The API image includes the built UI, so <http://localhost:5080> is already the whole app — nothing
 else to start.
 
+The interface is **in Finnish**. Switch it to English with the **Kieli / Language** picker in the
+header; the choice is remembered in your browser.
+
 For development, run Vite instead so edits hot-reload:
 
 ```bash
@@ -233,8 +236,10 @@ So, in practice:
 > we do*. That second question is what the model's narrative is for — read it, especially when it
 > disagrees.
 
-Citations expand to the passage the model actually pointed at. Invented citation ids are dropped
-before they ever reach you, so what you see is verifiable against what the model was given.
+Citations appear twice: as superscript numbers **inside** the narrative, and as chips below it. They
+are the same references — click either to open the passage. The model cites by identifier rather than
+by quotation so that an invented reference can be caught; anything it could not verify was dropped
+before it ever reached you.
 
 ---
 
@@ -253,6 +258,26 @@ yet, so this is a label rather than an identity, but an unattributed audit trail
 Decisions are **append-only**. Changing your mind writes a new row; only the latest counts toward
 metrics, and the earlier ones stay as history. There is no edit and no delete, on purpose — an audit
 trail you can quietly revise is not an audit trail.
+
+### Then what? — the shortlist
+
+Approving is not the end. Anything you backed — approved, or edited to GO or INVESTIGATE — appears in
+the **Shortlist** tab: still-open notices, **soonest deadline first**, with the days remaining in
+large type because that is the number that runs out.
+
+Each row links straight to **Tender documents**, the buyer's own tendering portal, which is where
+bids are actually submitted. Roughly half of eForms notices state that link and legacy notices never
+do; where it is missing the row says *"no link in notice"* rather than sending you somewhere invented.
+
+Three things deliberately never reach the shortlist:
+
+- **Rejections**, whatever the agent had recommended.
+- **Approved NO-GOs** — approving a NO-GO records that you agree *not* to bid; it is a decision, not
+  a task.
+- **Closed tenders.** A notice drops off once its deadline passes. The decision stays readable under
+  Decided; it just stops nagging you about something you can no longer bid on.
+
+This is the tab to open on a Monday. The queue is where you think; the shortlist is where you act.
 
 ### Reading decisions back
 
@@ -292,7 +317,7 @@ in some way you can now go and locate.
 
 **Once, at setup:** fill in `.env`, start the stack, set your profile carefully.
 
-**Daily, ~10 minutes:** let ingestion run. Search or browse for open notices in your CPV range.
+**Daily, ~10 minutes:** open the **Shortlist** first — anything closing this week needs a decision today. Then let ingestion run. Search or browse for open notices in your CPV range.
 Assess the plausible ones. Work the queue — disagreements first, since those are where your judgement
 is actually needed. Write notes.
 

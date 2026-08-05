@@ -33,8 +33,8 @@ line.
 | 1 | Ingestion — Hilma client, Postgres, incremental worker | **done** — runs against the live API, both notice families |
 | 2 | Retrieval — chunking, embeddings, Qdrant | **done** — measured: hit@5 100%, MRR 0.875 over 300 notices |
 | 3 | Agent — deterministic scoring + LLM narration, assessments | **working end to end** against live notices |
-| 4 | React approval queue | **working** — queue, decisions, live SSE run, editable profile |
-| 5 | README polish, metrics | **measured** — 24 assessments; the disagreement pattern is characterised below |
+| 4 | React approval queue | **done** — Finnish UI (English toggle), queue with filters, semantic search, live SSE run, shortlist, decided-assessment audit trail, editable profile |
+| 5 | README polish, metrics | **done** — 24 assessments, the disagreement pattern characterised below, 132 tests across three layers |
 
 **Phase 1 is done.** `docker compose up` on a clean volume migrates Postgres, searches the live
 index, fetches content from both read APIs under a rate limiter, and stores real Finnish
@@ -87,9 +87,9 @@ the corpus and the embeddings, which cost money to rebuild.
 Run the tests with:
 
 ```bash
-dotnet test                        # 73 backend tests
-npm test --prefix web              # 26 frontend tests
-npm run test:e2e --prefix web      # 8 end-to-end tests, against the running container
+dotnet test                        # 75 backend tests
+npm test --prefix web              # 46 frontend tests
+npm run test:e2e --prefix web      # 11 end-to-end tests, against the running container
 ```
 
 The frontend tests pin the things that are easy to break quietly: the reader that keeps old
@@ -357,9 +357,9 @@ something rather than rejecting everything. Edit it in the UI's profile tab.
 
 ## The approval queue (Phase 4)
 
-`/web` — React 19 + TypeScript on Vite. Four views: the **queue**, an **assess** tab that searches
-the index and runs a notice through the pipeline over SSE, a **decided** tab holding the audit
-trail, and a **profile** editor.
+`/web` — React 19 + TypeScript on Vite. Five views: the **queue**, an **assess** tab that searches
+the index and runs a notice through the pipeline over SSE, a **shortlist** of what was backed and is
+still biddable, a **decided** tab holding the audit trail, and a **profile** editor.
 
 ```bash
 cd web && npm install && npm run dev     # http://localhost:5173, proxies /api to the backend
@@ -392,6 +392,37 @@ queue and decided projections, which are anonymous types server-side.
 template now scaffolds TS 6. A React SPA needs nothing from TS 6, and an unresolved peer conflict is
 the kind of thing that breaks quietly later.)*
 
+### The interface is Finnish
+
+The corpus is Finnish, the queries are Finnish, and Gemini writes the narratives in Finnish. An
+English-only interface wrapped around all of that was the odd part, so the UI ships in **Finnish**
+with English as a toggle in the header — kept because the notices themselves are sometimes Swedish or
+English, and because this repository is read by people who do not read Finnish.
+
+The translation layer is a hundred lines and two flat dictionaries rather than a library: the app has
+two runtime dependencies and a translation framework would have been the third and the largest. What
+that costs is the one failure mode of every hand-rolled i18n layer — a key added to one language and
+forgotten in the other, which silently renders the key itself onto a button. So a test asserts the two
+dictionaries have identical key sets, and that no long string is identical across them, which catches
+an English sentence pasted into the Finnish table.
+
+**The score breakdown stays English.** Those strings are written by `FitScorer` and stored inside the
+assessment record, which is never rewritten. Translating them means emitting structured rule data
+rather than prose — a change to the scorer, not to the UI, and not one worth making to relabel four
+rows.
+
+### Citations are numbered, not spelled out
+
+The model cites by chunk **identifier** rather than by quotation, so that an invented reference can be
+caught and dropped rather than read as evidence. That is the right thing to put on the wire and the
+wrong thing to show a person: it put 36-character GUIDs in the middle of sentences a human is meant to
+read.
+
+The narrative now renders each verified identifier as the same number as its chip below, and clicking
+the marker opens the passage it points at. References the service could not verify were already
+dropped before storage, so they resolve to nothing and are removed rather than left as a dangling
+`[]`.
+
 ### Triage order is a choice, so it is exposed
 
 The queue sorts by disagreement then score by default, but a reviewer's real question is often
@@ -409,6 +440,31 @@ warnings included. Citations expand to the passage the model actually pointed at
 
 Decisions are **append-only** — changing your mind writes a new row. An audit trail you can quietly
 revise is not an audit trail.
+
+### An approval has to lead somewhere
+
+Recording a decision used to be the end of the road. The row was written, the card left the queue,
+the metrics ticked — and a reviewer who had just decided to bid was on their own to go and find the
+tender again. `EffectiveRecommendation` even carried a comment calling it *"the column a shortlist
+query filters on"*, and nothing queried it.
+
+`GET /api/shortlist` is that query. Still-open notices a human backed, soonest deadline first:
+
+![The shortlist, each row leading with days remaining and ending in a link to the buyer's tender
+portal](docs/images/shortlist.png)
+
+The rules it applies are the ones the audit trail already implies. A **rejection** never appears,
+whatever the agent had recommended. An **approved NO-GO** is a recorded agreement *not* to bid, so it
+does not appear either — only what the reviewer stood behind as worth pursuing. And a notice **drops
+off once its deadline passes**, because a closed tender is not a task; the decision itself stays
+readable under Decided.
+
+Each row ends in the thing that makes it actionable: `procurementDocumentsUrl`, the buyer's own
+tendering portal. That field was in the stored payload all along and had never been mapped — adding
+it was a migration and one `UPDATE` over `RawPayload`, not a re-crawl of 800 notices under a rate
+limiter, which is the case the raw payload was kept for. About half of eForms notices state one and
+legacy notices never do, so where it is missing the row says *"no link in notice"* rather than
+linking somewhere invented.
 
 ### The audit trail has to be readable, not just writable
 

@@ -167,6 +167,87 @@ public static class ApprovalEndpoints
         .WithName("GetDecidedAssessments")
         .WithSummary("Assessments a human has ruled on, newest decision first.");
 
+        // What the reviewer said yes to and can still act on.
+        //
+        // Approving something was, until this existed, the end of the road: a row was written, the
+        // card left the queue, and the reviewer was on their own to go and find the tender again.
+        // The shortlist closes that loop — still-open notices the human backed, soonest deadline
+        // first, each with the link to where bids are actually submitted.
+        group.MapGet("/shortlist", async (HilmaDbContext db, CancellationToken ct, int take = 50) =>
+        {
+            take = Math.Clamp(take, 1, 100);
+
+            var latest = await db.ApprovalDecisions.AsNoTracking()
+                .GroupBy(d => d.AssessmentId)
+                .Select(g => g.OrderByDescending(d => d.DecidedAt).First())
+                .ToListAsync(ct);
+
+            // A rejection is never a shortlist entry, whatever the agent had recommended.
+            var backed = latest.Where(d => d.Decision != DecisionType.Rejected).ToList();
+            if (backed.Count == 0) return Results.Ok(Array.Empty<object>());
+
+            var ids = backed.Select(d => d.AssessmentId).ToList();
+
+            var assessments = await db.FitAssessments.AsNoTracking()
+                .Where(a => ids.Contains(a.Id))
+                .Select(a => new
+                {
+                    a.Id,
+                    a.NoticeId,
+                    noticeTitle = a.Notice!.Title,
+                    buyerName = a.Notice.BuyerName,
+                    a.Notice.SubmissionDeadline,
+                    a.Notice.EstimatedValue,
+                    a.Notice.Currency,
+                    a.Notice.ProcurementDocumentsUrl,
+                    a.DeterministicScore,
+                    a.ModelRecommendation,
+                })
+                .ToListAsync(ct);
+
+            var byId = assessments.ToDictionary(a => a.Id);
+            var now = DateTimeOffset.UtcNow;
+
+            return Results.Ok(backed
+                .Where(decision => byId.ContainsKey(decision.AssessmentId))
+                .Select(decision => new { decision, assessment = byId[decision.AssessmentId] })
+                // Only what the reviewer stood behind as worth pursuing. An APPROVED NO-GO is a
+                // recorded agreement not to bid, not a shortlist entry.
+                .Where(x => x.decision.EffectiveRecommendation(x.assessment.ModelRecommendation) != Recommendation.NoGo)
+                // A closed tender cannot be bid on, so it drops off rather than lingering as a
+                // reproach. The decision itself stays readable in /decided either way.
+                .Where(x => x.assessment.SubmissionDeadline is null || x.assessment.SubmissionDeadline > now)
+                .OrderBy(x => x.assessment.SubmissionDeadline is null)
+                .ThenBy(x => x.assessment.SubmissionDeadline)
+                .Take(take)
+                .Select(x => new
+                {
+                    assessmentId = x.assessment.Id,
+                    x.assessment.NoticeId,
+                    x.assessment.noticeTitle,
+                    x.assessment.buyerName,
+                    x.assessment.SubmissionDeadline,
+                    x.assessment.EstimatedValue,
+                    x.assessment.Currency,
+                    x.assessment.DeterministicScore,
+
+                    // Where a bid is actually submitted. Null for legacy notices, whose contract has
+                    // no equivalent field — the UI says so rather than linking somewhere invented.
+                    x.assessment.ProcurementDocumentsUrl,
+
+                    standing = x.decision.EffectiveRecommendation(x.assessment.ModelRecommendation),
+                    x.decision.ReviewedBy,
+                    x.decision.DecidedAt,
+                    x.decision.ReviewerNote,
+                    daysLeft = x.assessment.SubmissionDeadline is { } due
+                        ? (int)Math.Ceiling((due - now).TotalDays)
+                        : (int?)null,
+                })
+                .ToList());
+        })
+        .WithName("GetShortlist")
+        .WithSummary("Still-open notices a human backed, soonest deadline first.");
+
         group.MapPost("/assessments/{id:guid}/decision", async (
             Guid id,
             DecisionRequest request,

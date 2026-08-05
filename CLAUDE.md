@@ -25,10 +25,10 @@ Editing a company profile does **not** re-score existing assessments.
 ## Verifying changes
 
 ```bash
-dotnet test                              # 73 tests; keep them green
-cd web && npm test                       # 26 frontend tests (Vitest)
+dotnet test                              # 75 tests; keep them green
+cd web && npm test                       # 46 frontend tests (Vitest)
 cd web && npm run build                  # frontend type check + production build
-cd web && npm run test:e2e               # 8 end-to-end tests (Playwright)
+cd web && npm run test:e2e               # 11 end-to-end tests (Playwright)
 ```
 
 The E2E suite drives the **container** at <http://localhost:5080>, not the Vite dev server, because
@@ -51,6 +51,24 @@ The frontend's API types are **generated**, not written: `cd web && npm run gen-
 For a DTO to reach that document the endpoint must declare it — `.Produces<T>()` on the route, or a
 typed result. An endpoint returning bare `Results.Ok(x)` contributes **no response schema**, so the
 generated types silently lose it and the frontend stops compiling on the next regeneration.
+
+## The interface is Finnish
+
+The corpus, the queries and the generated narratives are Finnish, so the UI is too. English is a
+toggle, not the default.
+
+Strings live in `web/src/i18n.ts` as two flat dictionaries. **Add every new key to both** — a key
+present in one language falls back to printing the key itself, so a button reads `card.approve`. A
+test asserts the two tables have identical key sets and that no long string is identical across them,
+which is what catches an English sentence pasted into the Finnish table.
+
+`LanguageProvider` lives in its own file on purpose: a module that exports both a component and plain
+functions cannot be hot-reloaded by React Fast Refresh.
+
+**Score-breakdown details are not translated.** `FitScorer` writes them in English (`"Best CPV match:
+72000000 vs 72000000 (exact)"`) and they are stored inside the assessment record, which is never
+rewritten. Translating them would mean emitting structured rule data instead of prose — a change to
+the load-bearing scorer, not a UI change.
 
 ## Running the stack
 

@@ -54,6 +54,18 @@ public class Notice
 
     public bool? IsCancelled { get; set; }
 
+    /// <summary>
+    /// Where the tender documents live, and in practice where a bid is actually submitted — usually a
+    /// buyer-specific tendering portal.
+    /// </summary>
+    /// <remarks>
+    /// This is the field that lets an approved assessment become an action rather than a filed
+    /// opinion: without it a reviewer who decides to bid has to go and find the notice again by hand.
+    /// Present on eForms notices via the search index; the legacy contract has no equivalent, so it
+    /// stays null there rather than being invented.
+    /// </remarks>
+    public string? ProcurementDocumentsUrl { get; set; }
+
     /// <summary>Which API the structured fields above were derived from — see <see cref="NoticeSource"/>.</summary>
     public required string Source { get; set; }
 

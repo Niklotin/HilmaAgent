@@ -493,6 +493,87 @@ input {
   color: var(--muted);
 }
 
+/* Citation markers inside the narrative. Numbered to match the chips below, so the prose reads as
+   prose instead of carrying 36-character identifiers mid-sentence. */
+.cite-marker {
+  font: inherit;
+  font-size: 0.7em;
+  font-weight: 600;
+  line-height: 1;
+  vertical-align: super;
+  padding: 0 0.15rem;
+  margin: 0 0.05rem;
+  border: none;
+  border-radius: 2px;
+  background: transparent;
+  color: var(--focus);
+  cursor: pointer;
+}
+
+.cite-marker::before { content: '['; }
+.cite-marker::after { content: ']'; }
+
+.cite-marker:hover:not(:disabled),
+.cite-marker.cite-open {
+  background: var(--focus);
+  color: var(--bg);
+}
+
+/* Shortlist — what was approved and is still biddable. Deadline first, because that is the thing
+   that runs out. */
+.shortlist-row {
+  display: grid;
+  grid-template-columns: 6rem 1fr auto;
+  align-items: start;
+  gap: 1rem;
+  padding: 0.9rem 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.shortlist-when {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding-top: 0.15rem;
+}
+
+.shortlist-when strong {
+  font-size: 1.6rem;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.shortlist-urgent .shortlist-when strong {
+  color: var(--nogo);
+}
+
+.shortlist-what h3 {
+  margin: 0 0 0.15rem;
+  font-size: 1rem;
+}
+
+.shortlist-act {
+  padding-top: 0.2rem;
+  white-space: nowrap;
+}
+
+.cta {
+  display: inline-block;
+  padding: 0.4rem 0.8rem;
+  border: 1px solid var(--go);
+  border-radius: 4px;
+  color: var(--go);
+  text-decoration: none;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.cta:hover {
+  background: var(--go);
+  color: var(--bg);
+}
+
 /* Decided assessments — the read side of the audit trail. */
 .card-decided {
   background: var(--decided-bg);
@@ -545,6 +626,8 @@ input {
   .score { text-align: left; }
   .result header { flex-direction: column; }
   .topbar-right { width: 100%; }
+  .shortlist-row { grid-template-columns: 1fr; gap: 0.5rem; }
+  .shortlist-when { flex-direction: row; align-items: baseline; gap: 0.4rem; }
 }
 
 code {

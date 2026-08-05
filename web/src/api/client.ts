@@ -45,6 +45,31 @@ export interface DecidedItem extends QueueItem {
   revisionCount: number
 }
 
+/**
+ * A notice the reviewer backed and can still act on.
+ *
+ * The queue answers "what should I look at", the decided tab answers "what did I conclude". This
+ * answers the question that actually matters afterwards: what am I bidding on, and by when.
+ */
+export interface ShortlistItem {
+  assessmentId: string
+  noticeId: string
+  noticeTitle: string | null
+  buyerName: string | null
+  submissionDeadline: string | null
+  estimatedValue: number | null
+  currency: string | null
+  deterministicScore: number
+  /** Where bids are actually submitted. Null for legacy notices, which carry no such field. */
+  procurementDocumentsUrl: string | null
+  /** What the reviewer stood behind: GO or INVESTIGATE. NO_GO never reaches the shortlist. */
+  standing: string
+  reviewedBy: string | null
+  decidedAt: string
+  reviewerNote: string | null
+  daysLeft: number | null
+}
+
 export interface SearchChunk {
   chunkId: string
   section: string
@@ -131,6 +156,8 @@ export const api = {
   },
 
   decided: () => request<DecidedItem[]>('/decided?take=50'),
+
+  shortlist: () => request<ShortlistItem[]>('/shortlist?take=50'),
 
   assessment: (id: string) => request<FitAssessment>(`/assessments/${id}`),
 
