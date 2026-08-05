@@ -250,8 +250,25 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Assessments awaiting a human decision, disagreements first. */
+        /** Assessments awaiting a human decision. Sort by disagreement (default), score, or deadline. */
         get: operations["GetApprovalQueue"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/decided": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Assessments a human has ruled on, newest decision first. */
+        get: operations["GetDecidedAssessments"];
         put?: never;
         post?: never;
         delete?: never;
@@ -315,11 +332,100 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        ApprovalDecision: {
+            /** Format: uuid */
+            id?: string;
+            /** Format: uuid */
+            assessmentId?: string;
+            assessment?: null | components["schemas"]["FitAssessment"];
+            decision: string;
+            editedRecommendation?: null | string;
+            reviewerNote?: null | string;
+            reviewedBy?: null | string;
+            /** Format: date-time */
+            decidedAt?: string;
+        };
+        Citation: {
+            /** Format: uuid */
+            chunkId: string;
+            section: null | string;
+            quote: null | string;
+        };
+        CompanyProfile: {
+            /** Format: uuid */
+            id?: string;
+            name: string;
+            description?: null | string;
+            technologies?: string[];
+            referenceProjects?: string[];
+            preferredCpvCodes?: string[];
+            regions?: string[];
+            /** Format: double */
+            minContractValue?: null | number | string;
+            /** Format: double */
+            maxContractValue?: null | number | string;
+            /** Format: date-time */
+            createdAt?: string;
+            /** Format: date-time */
+            updatedAt?: string;
+        };
         DecisionRequest: {
             decision: string;
             editedRecommendation: null | string;
             reviewerNote: null | string;
             reviewedBy: null | string;
+        };
+        FitAssessment: {
+            /** Format: uuid */
+            id?: string;
+            noticeId: string;
+            notice?: null | components["schemas"]["Notice"];
+            /** Format: uuid */
+            profileId?: string;
+            profile?: null | components["schemas"]["CompanyProfile"];
+            /** Format: int32 */
+            deterministicScore?: number | string;
+            scoreBreakdownJson: string;
+            scoreRecommendation: string;
+            modelRecommendation: string;
+            recommendationDisagreement?: boolean;
+            reasoning: string;
+            citations?: components["schemas"]["Citation"][];
+            modelId?: null | string;
+            /** Format: date-time */
+            createdAt?: string;
+        };
+        Notice: {
+            id: string;
+            /** Format: int32 */
+            noticeTypeCode?: null | number | string;
+            noticeType?: null | string;
+            title?: null | string;
+            buyerName?: null | string;
+            buyerNationalRegistrationNumber?: null | string;
+            buyerOrganizationType?: null | string;
+            cpvCodes?: string[];
+            /** Format: double */
+            estimatedValue?: null | number | string;
+            /** Format: double */
+            estimatedValueMin?: null | number | string;
+            /** Format: double */
+            estimatedValueMax?: null | number | string;
+            estimatedValueWithheld?: boolean;
+            currency?: null | string;
+            /** Format: date-time */
+            publicationDate?: null | string;
+            /** Format: date-time */
+            submissionDeadline?: null | string;
+            region?: string[];
+            language?: null | string;
+            isLatest?: null | boolean;
+            isCancelled?: null | boolean;
+            source: string;
+            rawPayload: string;
+            eFormsXml?: null | string;
+            /** Format: date-time */
+            fetchedAt?: string;
         };
         ProfileRequest: {
             name: string;
@@ -531,7 +637,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["FitAssessment"];
+                };
             };
         };
     };
@@ -594,7 +702,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["FitAssessment"];
+                };
             };
         };
     };
@@ -612,7 +722,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["CompanyProfile"][];
+                };
             };
         };
     };
@@ -629,12 +741,14 @@ export interface operations {
             };
         };
         responses: {
-            /** @description OK */
-            200: {
+            /** @description Created */
+            201: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["CompanyProfile"];
+                };
             };
         };
     };
@@ -654,7 +768,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["CompanyProfile"];
+                };
             };
         };
     };
@@ -678,7 +794,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["CompanyProfile"];
+                };
             };
         };
     };
@@ -687,6 +805,29 @@ export interface operations {
             query?: {
                 take?: number | string;
                 disagreementsFirst?: boolean;
+                disagreementsOnly?: boolean;
+                minScore?: number | string;
+                sort?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    GetDecidedAssessments: {
+        parameters: {
+            query?: {
+                take?: number | string;
             };
             header?: never;
             path?: never;
@@ -718,12 +859,14 @@ export interface operations {
             };
         };
         responses: {
-            /** @description OK */
-            200: {
+            /** @description Created */
+            201: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ApprovalDecision"];
+                };
             };
         };
     };
@@ -743,7 +886,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ApprovalDecision"][];
+                };
             };
         };
     };

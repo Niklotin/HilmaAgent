@@ -71,7 +71,10 @@ COMPOSE_BAKE=false docker compose up -d --build
 That is `postgres`, `qdrant`, `worker`, and `api`. The worker applies migrations, then ingests on a
 schedule. API on <http://localhost:5080>.
 
-Then the UI:
+The API image includes the built UI, so <http://localhost:5080> is already the whole app — nothing
+else to start.
+
+For development, run Vite instead so edits hot-reload:
 
 ```bash
 npm run dev --prefix web
@@ -129,8 +132,12 @@ Two ways in.
 **Browse** — the **Assess** tab lists notices with buyer, CPV and deadline. Fine when you just want
 to work through what is open.
 
-**Search semantically** — better when you know what you are looking for. Query in **Finnish**; the
-corpus is Finnish and matching is cross-lingual enough to return Swedish-language notices too.
+**Search semantically** — better when you know what you are looking for. The search box at the top of
+the **Assess** tab ranks notices by meaning and shows the matching passage under each hit, with the
+**open only** box ticked by default. Query in **Finnish**; the corpus is Finnish and matching is
+cross-lingual enough to return Swedish- and English-language notices too.
+
+The same thing from the API:
 
 ```bash
 curl -X POST http://localhost:5080/api/search \
@@ -171,6 +178,17 @@ filter runs first. Assess the ones that survive triage, not everything.
 ## 8. Read the card
 
 Open the **Queue** tab. Disagreements sort first, then highest score, because those need you most.
+
+Three controls sit above the list:
+
+- **Sort by** — *disagreement* (default), *score*, or **deadline — closing soonest**. Switch to
+  deadline when you are working against the clock rather than triaging fresh notices; notices with no
+  stated deadline sort last.
+- **disagreements only** — the cases where the model and the rules parted ways.
+- **Min score** — hide everything below a threshold.
+
+Your half-written note survives switching tabs and reloading the page, so you can go and check
+something without losing it.
 
 Each card shows, side by side and never merged:
 
@@ -228,9 +246,21 @@ Four options per card: **Approve**, **Reject**, or **Edit to** GO / INVESTIGATE.
 what went wrong three months later. "Right CPV, but they want a product not a build" is worth more
 than any score.
 
+**Set your name in the header first.** Every decision records who made it, and the buttons stay
+disabled until it is filled in. It is stored in your browser, not on the server — there is no auth
+yet, so this is a label rather than an identity, but an unattributed audit trail is worthless.
+
 Decisions are **append-only**. Changing your mind writes a new row; only the latest counts toward
 metrics, and the earlier ones stay as history. There is no edit and no delete, on purpose — an audit
 trail you can quietly revise is not an audit trail.
+
+### Reading decisions back
+
+A decided assessment leaves the queue and appears in the **Decided** tab: what the score said, what
+the model said, what you stood behind, your note, and when. **Show decision history** expands every
+verdict ever recorded against it; **Change my mind** records a new one without erasing the old.
+
+This is where the notes earn their keep, so write them.
 
 ```bash
 curl -X POST http://localhost:5080/api/assessments/<assessment-guid>/decision \
@@ -265,6 +295,10 @@ in some way you can now go and locate.
 **Daily, ~10 minutes:** let ingestion run. Search or browse for open notices in your CPV range.
 Assess the plausible ones. Work the queue — disagreements first, since those are where your judgement
 is actually needed. Write notes.
+
+**Weekly, or when something nags at you:** skim the **Decided** tab. Past notes are the cheapest way
+to notice you keep rejecting the same category, which is usually a profile problem rather than a
+judgement one.
 
 **Weekly:** check the override rate. If it is high, your profile is describing a company you are not —
 usually the CPV list is too broad. Adjust and watch whether it falls.

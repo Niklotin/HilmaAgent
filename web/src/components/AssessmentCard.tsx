@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { api, parseBreakdown, type QueueItem } from '../api/client'
+import { useDraftNote } from '../drafts'
 
 const LABELS: Record<string, string> = {
   GO: 'GO',
@@ -18,8 +19,16 @@ function Verdict({ value }: { value: string }) {
  * card says so plainly: the reviewer is being asked to break a tie, and hiding one side would be
  * deciding on their behalf.
  */
-export function AssessmentCard({ item, onDecided }: { item: QueueItem; onDecided: () => void }) {
-  const [note, setNote] = useState('')
+export function AssessmentCard({
+  item,
+  reviewer,
+  onDecided,
+}: {
+  item: QueueItem
+  reviewer: string
+  onDecided: () => void
+}) {
+  const { note, setNote, clearNote } = useDraftNote(item.id)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [openCitation, setOpenCitation] = useState<string | null>(null)
@@ -34,8 +43,9 @@ export function AssessmentCard({ item, onDecided }: { item: QueueItem; onDecided
         decision,
         editedRecommendation,
         reviewerNote: note.trim() || undefined,
-        reviewedBy: 'reviewer',
+        reviewedBy: reviewer,
       })
+      clearNote()
       onDecided()
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
@@ -114,6 +124,7 @@ export function AssessmentCard({ item, onDecided }: { item: QueueItem; onDecided
             <button
               key={citation.chunkId}
               className="citation-chip"
+              aria-expanded={openCitation === citation.chunkId}
               onClick={() => setOpenCitation(openCitation === citation.chunkId ? null : (citation.chunkId ?? null))}
             >
               [{index + 1}] {citation.section}
@@ -127,7 +138,7 @@ export function AssessmentCard({ item, onDecided }: { item: QueueItem; onDecided
         </div>
       )}
 
-      <button className="link" onClick={toggleBreakdown}>
+      <button className="link" onClick={toggleBreakdown} aria-expanded={breakdownOpen}>
         {breakdownOpen ? 'Hide' : 'Show'} score breakdown
       </button>
 
@@ -170,11 +181,15 @@ export function AssessmentCard({ item, onDecided }: { item: QueueItem; onDecided
 
       {error && <p className="error">{error}</p>}
 
+      {/* A decision with no author is not worth recording, so the buttons wait for a name rather
+          than silently attributing the row to nobody. */}
+      {!reviewer && <p className="muted">Set your name in the header to record a decision.</p>}
+
       <footer className="actions">
-        <button disabled={busy} onClick={() => decide('APPROVED')} className="approve">
+        <button disabled={busy || !reviewer} onClick={() => decide('APPROVED')} className="approve">
           Approve
         </button>
-        <button disabled={busy} onClick={() => decide('REJECTED')} className="reject">
+        <button disabled={busy || !reviewer} onClick={() => decide('REJECTED')} className="reject">
           Reject
         </button>
         <span className="edit-group">
@@ -182,7 +197,7 @@ export function AssessmentCard({ item, onDecided }: { item: QueueItem; onDecided
           {['GO', 'INVESTIGATE', 'NO_GO']
             .filter((value) => value !== item.modelRecommendation)
             .map((value) => (
-              <button key={value} disabled={busy} onClick={() => decide('EDITED', value)}>
+              <button key={value} disabled={busy || !reviewer} onClick={() => decide('EDITED', value)}>
                 {LABELS[value]}
               </button>
             ))}

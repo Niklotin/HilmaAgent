@@ -25,8 +25,12 @@ public static class ProfileEndpoints
     {
         var group = app.MapGroup("/api/profiles").WithTags("Profiles");
 
+        // Response types are declared so they reach the OpenAPI document, and from there the
+        // generated frontend types. Without them the document describes request bodies only, and
+        // `npm run gen-types` silently produces a schema with no DTOs in it.
         group.MapGet("/", async (HilmaDbContext db, CancellationToken ct) =>
             Results.Ok(await db.CompanyProfiles.AsNoTracking().OrderBy(p => p.CreatedAt).ToListAsync(ct)))
+        .Produces<List<CompanyProfile>>()
         .WithName("ListProfiles")
         .WithSummary("Company profiles that notices are screened against.");
 
@@ -35,6 +39,7 @@ public static class ProfileEndpoints
             var profile = await db.CompanyProfiles.AsNoTracking().FirstOrDefaultAsync(p => p.Id == id, ct);
             return profile is null ? Results.NotFound() : Results.Ok(profile);
         })
+        .Produces<CompanyProfile>()
         .WithName("GetProfile");
 
         group.MapPost("/", async (ProfileRequest request, HilmaDbContext db, CancellationToken ct) =>
@@ -50,6 +55,7 @@ public static class ProfileEndpoints
 
             return Results.Created($"/api/profiles/{profile.Id}", profile);
         })
+        .Produces<CompanyProfile>(StatusCodes.Status201Created)
         .WithName("CreateProfile")
         .WithSummary("Adds a profile. Several can coexist; an assessment names the one it used.");
 
@@ -68,6 +74,7 @@ public static class ProfileEndpoints
             // made; silently re-scoring history to match an edited profile would destroy the audit trail.
             return Results.Ok(profile);
         })
+        .Produces<CompanyProfile>()
         .WithName("UpdateProfile")
         .WithSummary("Edits a profile. Existing assessments are not re-scored — they record what was true then.");
 

@@ -33,6 +33,7 @@ public static class AssessmentEndpoints
                 return Results.Problem(ex.Message, statusCode: StatusCodes.Status409Conflict);
             }
         })
+        .Produces<FitAssessment>()
         .WithName("AssessNotice")
         .WithSummary("Scores a notice in code, then has the model justify that score.");
 
@@ -118,6 +119,7 @@ public static class AssessmentEndpoints
 
             return assessment is null ? Results.NotFound() : Results.Ok(assessment);
         })
+        .Produces<FitAssessment>()
         .WithName("GetAssessment")
         .WithSummary("One assessment, including its full score breakdown and citations.");
 

@@ -58,11 +58,16 @@ then ingests on a schedule. The API is on <http://localhost:5080>:
 curl http://localhost:5080/api/notices/stats
 ```
 
-Then the approval queue, which proxies `/api` to the backend so the browser stays on one origin:
+The API image also **bakes in the built SPA**, so <http://localhost:5080> serves the whole app —
+one container, one origin, no CORS and no proxy. For development, run Vite instead, which proxies
+`/api` to the backend so the browser still sees a single origin:
 
 ```bash
 cd web && npm install && npm run dev     # http://localhost:5173
 ```
+
+The API serves `wwwroot` only when a build was baked in, so the dev server is never shadowed by a
+stale bundle; the startup log says which mode it is in.
 
 Postgres and Qdrant data live in named volumes. `docker compose down` keeps them, so a restart
 resumes from the ingestion checkpoint rather than re-fetching and re-embedding; `down -v` discards
@@ -326,8 +331,9 @@ something rather than rejecting everything. Edit it in the UI's profile tab.
 
 ## The approval queue (Phase 4)
 
-`/web` — React 19 + TypeScript on Vite. Three views: the **queue**, an **assess** tab that runs a
-notice through the pipeline over SSE, and a **profile** editor.
+`/web` — React 19 + TypeScript on Vite. Four views: the **queue**, an **assess** tab that searches
+the index and runs a notice through the pipeline over SSE, a **decided** tab holding the audit
+trail, and a **profile** editor.
 
 ```bash
 cd web && npm install && npm run dev     # http://localhost:5173, proxies /api to the backend
@@ -347,12 +353,20 @@ trail the project exists to produce.
 ### Types are generated, not written
 
 `npm run gen-types` runs `openapi-typescript` against the API's own OpenAPI document. If an endpoint
-changes shape, the frontend stops compiling — which is the point. The one hand-written interface is
-the queue projection, which is an anonymous type server-side.
+changes shape, the frontend stops compiling — which is the point. The hand-written interfaces are the
+queue and decided projections, which are anonymous types server-side.
 
 *(The web app is pinned to TypeScript 5: `openapi-typescript` declares a `^5.x` peer and the Vite
 template now scaffolds TS 6. A React SPA needs nothing from TS 6, and an unresolved peer conflict is
 the kind of thing that breaks quietly later.)*
+
+### Triage order is a choice, so it is exposed
+
+The queue sorts by disagreement then score by default, but a reviewer's real question is often
+*what closes first*. `sort=deadline` orders by submission deadline ascending, notices with no stated
+deadline last — they are the ones with no clock running. `disagreementsOnly` and `minScore` narrow it
+further. A 93/100 GO closing in six weeks is less urgent than a 70 closing on Friday, and a queue
+that can only rank by score cannot say so.
 
 ### What the card shows, and why
 
@@ -363,6 +377,23 @@ warnings included. Citations expand to the passage the model actually pointed at
 
 Decisions are **append-only** — changing your mind writes a new row. An audit trail you can quietly
 revise is not an audit trail.
+
+### The audit trail has to be readable, not just writable
+
+`/queue` deliberately excludes anything already decided, which for a while meant a decision — and the
+note explaining it — became unreachable the moment it was recorded. Append-only storage with no way
+to read the history back is a filing cabinet with no drawer handles.
+
+So `GET /api/decided` is the queue's mirror: assessments a human has ruled on, newest first, each
+carrying its latest verdict, who recorded it, and how many decisions exist against it. The **decided**
+tab expands the full history per assessment and offers *"change my mind"*, which writes a new row and
+leaves the old one visible underneath — the append-only design made operable rather than merely
+claimed.
+
+Decisions record **who** made them. That was a hardcoded `"reviewer"` string until the reviewer name
+became a real field; there is still no auth, so the name is kept in `localStorage` and the decide
+buttons stay disabled until one is set. An unattributed audit trail is not an audit trail, and faking
+the attribution would be worse than asking.
 
 ### Measured outcomes
 
@@ -416,6 +447,63 @@ disagreements are discriminating rather than a blanket hedge.
 **Override rate is still 0% over a single human review**, and is the number that most needs a real
 reviewer working the queue. It is reported here because it is honest to show which metrics are thin,
 not because one review means anything.
+
+## What this would need to be a product
+
+This is a portfolio project, and the scope boundary is deliberate. But "we ran out of time" and "we
+decided not to" are different claims, so here is the honest gap between this and something a
+procurement team could actually buy — written down rather than built, because knowing what is missing
+is the cheaper half of knowing how to build it.
+
+### Blockers — not polish, but reasons it cannot ship
+
+**There is no authentication.** Anyone who can reach the port can approve a tender or rewrite the
+profile. Real deployment means SSO/OIDC and, more interestingly, **roles that separate *may approve*
+from *may edit the profile*** — those are different powers, because editing the profile silently
+changes what every future assessment scores.
+
+**Reviewer identity is a label, not an identity.** The name recorded against each decision is typed
+by the reviewer and kept in `localStorage`; nothing stops someone entering a colleague's name. It is
+enough to make the audit trail *readable* and nowhere near enough to make it *evidential*. The fix is
+the same as above — the field already carries whatever the auth layer would supply.
+
+**One profile in practice.** The API stores many and every assessment records which one it used, but
+the UI edits `profiles[0]`. A firm with two business units screening different CPV ranges needs
+profile switching, and probably tenant isolation underneath it.
+
+### What would make it actually used
+
+**Automated assessment.** Nobody clicks *Assess* sixty times a day. The natural shape is a scheduled
+pass over everything matching a profile, with the queue as the morning inbox — which the
+deterministic-filter-first design already anticipates, since it is what keeps that affordable.
+
+**Notifications.** Procurement is deadline-driven and a queue nobody opens is worthless. An email or
+Teams digest of new GOs, plus escalation on *closes in three days, still undecided*.
+
+**Export and reporting.** CSV for management, and a compliance-grade audit export. `GET /api/metrics`
+is the seed of this, not the thing itself.
+
+**Collaboration.** Assign a notice to a person, discuss it, and require a second reviewer above a
+value threshold — the point at which a single override becomes a business risk.
+
+**A Finnish UI.** The corpus, the queries and the generated narratives are all Finnish; the interface
+is English, with no i18n infrastructure at all. For the people who would actually use this, that is
+not cosmetic.
+
+### Operational maturity
+
+- **No frontend tests.** The .NET side has 65 and the React side has none — no Vitest, no Playwright.
+  The approval flow is exactly the kind of thing that should not regress silently.
+- **No cost controls.** Assessment costs real money per notice; a product needs budget caps and
+  per-user quotas, not a good intention.
+- **No observability.** No telemetry, no error reporting.
+- **Data retention.** Buyer contact details in notices are personal data, and nothing here expires.
+- **Model changes** are handled well for reproducibility — an assessment records the pinned model that
+  wrote it — but there is no defined workflow for *deliberately* re-assessing a corpus after a switch.
+
+None of this is hard in an interesting way, which is precisely why it is listed rather than built.
+The parts of this project worth reading are the ones where a decision had to be argued: scores in
+code, disagreement surfaced rather than resolved, records never rewritten.
 
 ## Open decisions
 

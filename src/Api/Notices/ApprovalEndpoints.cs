@@ -16,16 +16,41 @@ public static class ApprovalEndpoints
 
         // The queue: assessments nobody has ruled on yet, worst-blocked last so the reviewer's
         // attention goes where a decision is actually needed.
-        group.MapGet("/queue", async (HilmaDbContext db, CancellationToken ct, int take = 25, bool disagreementsFirst = true) =>
+        group.MapGet("/queue", async (
+            HilmaDbContext db,
+            CancellationToken ct,
+            int take = 25,
+            bool disagreementsFirst = true,
+            bool disagreementsOnly = false,
+            int? minScore = null,
+            string? sort = null) =>
         {
             var decided = db.ApprovalDecisions.Select(d => d.AssessmentId);
 
             var query = db.FitAssessments.AsNoTracking()
                 .Where(a => !decided.Contains(a.Id));
 
-            query = disagreementsFirst
-                ? query.OrderByDescending(a => a.RecommendationDisagreement).ThenByDescending(a => a.DeterministicScore)
-                : query.OrderByDescending(a => a.DeterministicScore);
+            if (disagreementsOnly) query = query.Where(a => a.RecommendationDisagreement);
+            if (minScore is { } floor) query = query.Where(a => a.DeterministicScore >= floor);
+
+            query = sort switch
+            {
+                // Urgency, not quality: a GO closing in three days needs a decision more than a
+                // better one closing in six weeks. Notices with no stated deadline sort last —
+                // they are the ones with no clock running.
+                "deadline" => query
+                    .OrderBy(a => a.Notice!.SubmissionDeadline == null)
+                    .ThenBy(a => a.Notice!.SubmissionDeadline)
+                    .ThenByDescending(a => a.DeterministicScore),
+
+                "score" => query.OrderByDescending(a => a.DeterministicScore),
+
+                // Default, and the historical behaviour: the cases where the model and the rules
+                // disagree are where a human's judgement is actually required.
+                _ => disagreementsFirst
+                    ? query.OrderByDescending(a => a.RecommendationDisagreement).ThenByDescending(a => a.DeterministicScore)
+                    : query.OrderByDescending(a => a.DeterministicScore),
+            };
 
             return Results.Ok(await query
                 .Take(Math.Clamp(take, 1, 100))
@@ -50,7 +75,97 @@ public static class ApprovalEndpoints
                 .ToListAsync(ct));
         })
         .WithName("GetApprovalQueue")
-        .WithSummary("Assessments awaiting a human decision, disagreements first.");
+        .WithSummary("Assessments awaiting a human decision. Sort by disagreement (default), score, or deadline.");
+
+        // The other half of the queue. Without this the audit trail is write-only: /queue excludes
+        // anything decided, so a recorded decision — and the note explaining it — would be
+        // unreachable the moment it was made. Decisions being append-only is only worth something
+        // if the history can be read back.
+        group.MapGet("/decided", async (HilmaDbContext db, CancellationToken ct, int take = 50) =>
+        {
+            take = Math.Clamp(take, 1, 100);
+
+            // Only the latest decision per assessment is the current verdict; earlier ones are
+            // history, and travel with the assessment as a count so the UI can offer to expand them.
+            var latest = await db.ApprovalDecisions.AsNoTracking()
+                .GroupBy(d => d.AssessmentId)
+                .Select(g => g.OrderByDescending(d => d.DecidedAt).First())
+                .ToListAsync(ct);
+
+            if (latest.Count == 0) return Results.Ok(Array.Empty<object>());
+
+            var revisions = await db.ApprovalDecisions.AsNoTracking()
+                .GroupBy(d => d.AssessmentId)
+                .Select(g => new { AssessmentId = g.Key, Count = g.Count() })
+                .ToDictionaryAsync(x => x.AssessmentId, x => x.Count, ct);
+
+            var ids = latest.Select(d => d.AssessmentId).ToList();
+
+            var assessments = await db.FitAssessments.AsNoTracking()
+                .Where(a => ids.Contains(a.Id))
+                .Select(a => new
+                {
+                    a.Id,
+                    a.NoticeId,
+                    noticeTitle = a.Notice!.Title,
+                    buyerName = a.Notice.BuyerName,
+                    a.Notice.SubmissionDeadline,
+                    a.Notice.EstimatedValue,
+                    a.Notice.Currency,
+                    a.DeterministicScore,
+                    a.ScoreRecommendation,
+                    a.ModelRecommendation,
+                    a.RecommendationDisagreement,
+                    a.Reasoning,
+                    a.Citations,
+                    a.ModelId,
+                    a.CreatedAt,
+                })
+                .ToListAsync(ct);
+
+            var byId = assessments.ToDictionary(a => a.Id);
+
+            return Results.Ok(latest
+                .Where(decision => byId.ContainsKey(decision.AssessmentId))
+                .OrderByDescending(decision => decision.DecidedAt)
+                .Take(take)
+                .Select(decision =>
+                {
+                    var a = byId[decision.AssessmentId];
+                    return new
+                    {
+                        a.Id,
+                        a.NoticeId,
+                        a.noticeTitle,
+                        a.buyerName,
+                        a.SubmissionDeadline,
+                        a.EstimatedValue,
+                        a.Currency,
+                        a.DeterministicScore,
+                        a.ScoreRecommendation,
+                        a.ModelRecommendation,
+                        a.RecommendationDisagreement,
+                        a.Reasoning,
+                        a.Citations,
+                        a.ModelId,
+                        a.CreatedAt,
+
+                        decision = decision.Decision,
+                        decision.EditedRecommendation,
+                        decision.ReviewerNote,
+                        decision.ReviewedBy,
+                        decision.DecidedAt,
+
+                        // What the reviewer actually stood behind, which is the column a shortlist
+                        // would filter on — an EDITED decision replaces the model's recommendation.
+                        effectiveRecommendation = decision.EffectiveRecommendation(a.ModelRecommendation),
+                        revisionCount = revisions.GetValueOrDefault(decision.AssessmentId, 1),
+                    };
+                })
+                .ToList());
+        })
+        .WithName("GetDecidedAssessments")
+        .WithSummary("Assessments a human has ruled on, newest decision first.");
 
         group.MapPost("/assessments/{id:guid}/decision", async (
             Guid id,
@@ -86,6 +201,7 @@ public static class ApprovalEndpoints
 
             return Results.Created($"/api/assessments/{id}/decisions", decision);
         })
+        .Produces<ApprovalDecision>(StatusCodes.Status201Created)
         .WithName("RecordDecision")
         .WithSummary("Records a human verdict on an assessment. Append-only.");
 
@@ -94,6 +210,7 @@ public static class ApprovalEndpoints
                 .Where(d => d.AssessmentId == id)
                 .OrderByDescending(d => d.DecidedAt)
                 .ToListAsync(ct)))
+        .Produces<List<ApprovalDecision>>()
         .WithName("GetDecisionHistory")
         .WithSummary("Every decision recorded against an assessment, newest first.");
 

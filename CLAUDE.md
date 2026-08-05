@@ -26,11 +26,20 @@ Editing a company profile does **not** re-score existing assessments.
 
 ```bash
 dotnet test                              # 65 tests; keep them green
-cd web && npx tsc --noEmit               # frontend type check
+cd web && npm run build                  # frontend type check + production build
 ```
+
+**Do not use `npx tsc --noEmit` as the frontend check.** `web/tsconfig.json` is a solution file
+(`"files": []`, references only), so that command type-checks *nothing* and exits 0 no matter what is
+broken. `npm run build` runs `tsc -b`, which honours the references and actually checks the code — it
+is the only command that catches a type error here.
 
 The frontend's API types are **generated**, not written: `cd web && npm run gen-types` runs
 `openapi-typescript` against the running API's OpenAPI document. Don't hand-edit `src/api/schema.d.ts`.
+
+For a DTO to reach that document the endpoint must declare it — `.Produces<T>()` on the route, or a
+typed result. An endpoint returning bare `Results.Ok(x)` contributes **no response schema**, so the
+generated types silently lose it and the frontend stops compiling on the next regeneration.
 
 ## Running the stack
 

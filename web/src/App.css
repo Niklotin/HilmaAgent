@@ -11,6 +11,8 @@
   --go: #15803d;
   --nogo: #b91c1c;
   --investigate: #b45309;
+  --focus: #2563eb;
+  --decided-bg: #f6f8fa;
   font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   color-scheme: light dark;
 }
@@ -26,6 +28,8 @@
     --go: #4ade80;
     --nogo: #f87171;
     --investigate: #fbbf24;
+    --focus: #60a5fa;
+    --decided-bg: #1c1f24;
   }
 }
 
@@ -93,6 +97,14 @@ button {
 
 button:hover:not(:disabled) {
   border-color: var(--fg);
+}
+
+/* The default focus ring is nearly invisible against these custom borders, which left keyboard
+   users unable to tell where they were. Applied to everything focusable, not just buttons. */
+:where(button, input, textarea, select, a):focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: 4px;
 }
 
 button:disabled {
@@ -353,10 +365,186 @@ input {
   gap: 1rem;
 }
 
+/* Queue filters. Triage needs "what closes soonest", not only "what scores highest". */
+.filters {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  flex-wrap: wrap;
+  margin: 1rem 0;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--line);
+  font-size: 0.875rem;
+  color: var(--muted);
+}
+
+.filters label {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.filters select,
+.filters input[type='number'] {
+  font: inherit;
+  padding: 0.25rem 0.4rem;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--fg);
+}
+
+.filters input[type='number'] {
+  width: 4.5rem;
+}
+
+/* Reviewer identity, sat next to the tabs because it applies to every decision made anywhere. */
+.topbar-right {
+  display: flex;
+  align-items: flex-end;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.reviewer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.reviewer input {
+  font: inherit;
+  font-size: 0.875rem;
+  padding: 0.3rem 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--fg);
+  width: 9rem;
+}
+
+/* Semantic search */
+.search {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin: 1rem 0;
+}
+
+.search input[type='text'],
+.search > input:not([type]) {
+  flex: 1 1 22rem;
+  font: inherit;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--fg);
+}
+
+.checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.875rem;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.result {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 0.75rem 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.result header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.result h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.result-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.similarity {
+  font-variant-numeric: tabular-nums;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.passage {
+  margin: 0.6rem 0 0;
+  padding-left: 0.75rem;
+  border-left: 2px solid var(--line);
+  font-size: 0.875rem;
+  color: var(--muted);
+}
+
+/* Decided assessments — the read side of the audit trail. */
+.card-decided {
+  background: var(--decided-bg);
+}
+
+.decision-strip {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  margin: 0.5rem 0;
+  font-size: 0.875rem;
+}
+
+.decision {
+  font-weight: 600;
+  font-size: 0.75rem;
+  letter-spacing: 0.03em;
+  padding: 0.15rem 0.45rem;
+  border-radius: 3px;
+  border: 1px solid currentColor;
+}
+
+.decision-approved { color: var(--go); }
+.decision-rejected { color: var(--nogo); }
+.decision-edited { color: var(--investigate); }
+
+.note {
+  margin: 0.5rem 0;
+  padding-left: 0.75rem;
+  border-left: 2px solid var(--line);
+  font-size: 0.9rem;
+}
+
+.decided-actions {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.revisit {
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px dashed var(--line);
+}
+
 @media (max-width: 40rem) {
   .grid-2 { grid-template-columns: 1fr; }
   .card header { flex-direction: column; }
   .score { text-align: left; }
+  .result header { flex-direction: column; }
+  .topbar-right { width: 100%; }
 }
 
 code {

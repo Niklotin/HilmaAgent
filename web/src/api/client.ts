@@ -29,6 +29,42 @@ export interface QueueItem {
   createdAt: string
 }
 
+/**
+ * A decided assessment. Same projection as the queue, plus the latest human verdict — also an
+ * anonymous shape server-side, so it is described here rather than generated.
+ */
+export interface DecidedItem extends QueueItem {
+  decision: string
+  editedRecommendation: string | null
+  reviewerNote: string | null
+  reviewedBy: string | null
+  decidedAt: string
+  /** What the reviewer stood behind: their edit if they made one, else the model's recommendation. */
+  effectiveRecommendation: string
+  /** How many decisions exist against this assessment. More than one means somebody changed their mind. */
+  revisionCount: number
+}
+
+export interface SearchChunk {
+  chunkId: string
+  section: string
+  lotId: string | null
+  score: number
+  content: string
+}
+
+export interface SearchResult {
+  noticeId: string
+  title: string | null
+  buyerName: string | null
+  cpvCodes: string[]
+  estimatedValue: number | null
+  currency: string | null
+  submissionDeadline: string | null
+  score: number
+  chunks: SearchChunk[]
+}
+
 export interface Metrics {
   assessments: number
   reviewed: number
@@ -78,11 +114,37 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return response.status === 204 ? (undefined as T) : ((await response.json()) as T)
 }
 
+export type QueueSort = 'disagreement' | 'score' | 'deadline'
+
+export interface QueueOptions {
+  sort?: QueueSort
+  disagreementsOnly?: boolean
+  minScore?: number
+}
+
 export const api = {
-  queue: (disagreementsFirst = true) =>
-    request<QueueItem[]>(`/queue?take=50&disagreementsFirst=${disagreementsFirst}`),
+  queue: ({ sort = 'disagreement', disagreementsOnly = false, minScore }: QueueOptions = {}) => {
+    const params = new URLSearchParams({ take: '50', sort })
+    if (disagreementsOnly) params.set('disagreementsOnly', 'true')
+    if (minScore != null && minScore > 0) params.set('minScore', String(minScore))
+    return request<QueueItem[]>(`/queue?${params}`)
+  },
+
+  decided: () => request<DecidedItem[]>('/decided?take=50'),
 
   assessment: (id: string) => request<FitAssessment>(`/assessments/${id}`),
+
+  search: (body: {
+    query: string
+    limit?: number
+    cpvPrefixes?: string[]
+    nutsPrefixes?: string[]
+    openOnly?: boolean
+  }) =>
+    request<{ query: string; count: number; results: SearchResult[] }>('/search', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
 
   decisions: (assessmentId: string) =>
     request<ApprovalDecision[]>(`/assessments/${assessmentId}/decisions`),
