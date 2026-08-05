@@ -1,8 +1,14 @@
-import { defineConfig } from 'vite'
+import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [react()],
+  test: {
+    environment: 'jsdom',
+    setupFiles: ['./src/test-setup.ts'],
+    // Tests live next to what they cover; the production bundle never imports them.
+    include: ['src/**/*.test.{ts,tsx}'],
+  },
   server: {
     port: 5173,
     proxy: {

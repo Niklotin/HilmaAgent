@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using HilmaAgent.Core.Notices;
 
@@ -144,9 +145,19 @@ public class NoticeContractParser : INoticeParser
         _ => null,
     };
 
+    /// <summary>
+    /// Hilma writes timestamps without a timezone offset, so they are pinned to UTC explicitly.
+    /// </summary>
+    /// <remarks>
+    /// Without <see cref="DateTimeStyles.AssumeUniversal"/> an offsetless timestamp is read as
+    /// <em>local</em> time, which makes a stored deadline a property of the machine that fetched the
+    /// notice — UTC in the container, UTC+3 on a Finnish developer's machine. That breaks
+    /// replayability and moves the deadline gate and its headroom points. Matches
+    /// <see cref="JsonPick.Date"/>, which already did this correctly.
+    /// </remarks>
     private static DateTimeOffset? Date(JsonElement? element, string name) =>
         Get(element, name) is { ValueKind: JsonValueKind.String } value
-        && DateTimeOffset.TryParse(value.GetString(), out var parsed)
+        && DateTimeOffset.TryParse(value.GetString(), CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var parsed)
             ? parsed.ToUniversalTime()
             : null;
 

@@ -78,8 +78,13 @@ the corpus and the embeddings, which cost money to rebuild.
 Run the tests with:
 
 ```bash
-dotnet test
+dotnet test                  # 72 backend tests
+npm test --prefix web        # 21 frontend tests
 ```
+
+The frontend tests pin the things that are easy to break quietly: the reader that keeps old
+assessments legible across a serializer change, the note draft that has to survive a card being
+unmounted, and the refusal to record a decision that nobody signed.
 
 Local development without Docker expects Postgres on `localhost:5432` (`hilma`/`hilma`/`hilma`) and
 the subscription key in user-secrets:
@@ -492,8 +497,9 @@ not cosmetic.
 
 ### Operational maturity
 
-- **No frontend tests.** The .NET side has 65 and the React side has none — no Vitest, no Playwright.
-  The approval flow is exactly the kind of thing that should not regress silently.
+- **No end-to-end tests.** The unit and component layers are covered — 65 on the .NET side, 21 in
+  Vitest around the approval flow — but nothing exercises the browser against a live API, so a
+  breakage in the seam between them would still go unnoticed until someone clicked.
 - **No cost controls.** Assessment costs real money per notice; a product needs budget caps and
   per-user quotas, not a good intention.
 - **No observability.** No telemetry, no error reporting.
@@ -526,8 +532,13 @@ turns out to be worth the demo value).
    `search`/`filter`/`orderby`/`top`/`skip`. `/notices/docs/search` is deprecated and has indexed
    nothing since 2023-09-01.
 4. ~~Wire the eForms Read API~~ — done. Batch endpoint, 50 ids per request.
-5. Add a real Finnish notice to `tests/Fixtures`. The current fixture is the vendor's own example —
-   authoritative on shape, synthetic in its values, and it omits `datePublished` entirely.
+5. ~~Add a real Finnish notice to `tests/Fixtures`~~ — done, and it earned its keep immediately.
+   Hilma writes timestamps **without a timezone offset**, and the legacy parser was reading them as
+   *local* time, so an ingested deadline silently depended on the machine that fetched the notice —
+   UTC in the container, UTC+3 on a Finnish developer's machine. Stored data is unaffected because
+   ingestion runs in the container, but the documented no-Docker path would have produced deadlines
+   three hours out, moving the deadline gate and its headroom points. The vendor example could not
+   catch it: it omits `datePublished` entirely.
 6. Tune `Hilma:RequestsPerWindow` to the API's actual published limit — 30/min is a guess made
    before any published figure was found.
 7. ~~Wire an embedding provider and measure retrieval~~ — done; numbers above.

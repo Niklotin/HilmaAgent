@@ -25,7 +25,8 @@ Editing a company profile does **not** re-score existing assessments.
 ## Verifying changes
 
 ```bash
-dotnet test                              # 65 tests; keep them green
+dotnet test                              # 72 tests; keep them green
+cd web && npm test                       # 21 frontend tests (Vitest)
 cd web && npm run build                  # frontend type check + production build
 ```
 
