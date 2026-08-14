@@ -4,9 +4,14 @@
     environment:
       POSTGRES_DB: hilma
       POSTGRES_USER: hilma
-      POSTGRES_PASSWORD: hilma
+      # Overridable so a real deployment is not stuck with the demo password. The default
+      # is fine only because the port is loopback-only above.
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:-hilma}"
+    # Bound to the loopback interface, not 0.0.0.0. Docker publishes to every interface by default,
+    # which would put this database — credentials below, and the data-protection key ring that
+    # decrypts stored API keys — on whatever network the machine happens to be joined to.
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
@@ -17,9 +22,11 @@
 
   qdrant:
     image: qdrant/qdrant:latest
+    # Qdrant runs without an API key here, so its REST API and dashboard are unauthenticated.
+    # Loopback-only for the same reason as Postgres.
     ports:
-      - "6333:6333"  # REST / dashboard
-      - "6334:6334"  # gRPC, which the client uses
+      - "127.0.0.1:6333:6333"  # REST / dashboard
+      - "127.0.0.1:6334:6334"  # gRPC, which the client uses
     volumes:
       - qdrant-data:/qdrant/storage
 
@@ -31,7 +38,7 @@
       postgres:
         condition: service_healthy
     environment:
-      ConnectionStrings__Postgres: "Host=postgres;Port=5432;Database=hilma;Username=hilma;Password=hilma"
+      ConnectionStrings__Postgres: "Host=postgres;Port=5432;Database=hilma;Username=hilma;Password=${POSTGRES_PASSWORD:-hilma}"
       # Supply the APIM subscription key via .env - never commit it.
       Hilma__SubscriptionKey: "${HILMA_SUBSCRIPTION_KEY}"
       Qdrant__Host: qdrant
@@ -52,15 +59,18 @@
         condition: service_healthy
     environment:
       ASPNETCORE_ENVIRONMENT: Development
-      ConnectionStrings__Postgres: "Host=postgres;Port=5432;Database=hilma;Username=hilma;Password=hilma"
+      ConnectionStrings__Postgres: "Host=postgres;Port=5432;Database=hilma;Username=hilma;Password=${POSTGRES_PASSWORD:-hilma}"
       Hilma__SubscriptionKey: "${HILMA_SUBSCRIPTION_KEY}"
       Qdrant__Host: qdrant
       Embeddings__Endpoint: "${AZURE_OPENAI_ENDPOINT}"
       Embeddings__ApiKey: "${AZURE_OPENAI_API_KEY}"
       Embeddings__Provider: "${EMBEDDINGS_PROVIDER:-azure}"
       Gemini__ApiKey: "${GEMINI_API_KEY}"
+    # There is no authentication in front of this. Anyone who can reach it can approve tenders and
+    # set provider API keys, so it stays on loopback. Putting it on a network means putting an
+    # authenticating proxy in front of it first — see the README.
     ports:
-      - "5080:8080"
+      - "127.0.0.1:5080:8080"
 
 volumes:
   postgres-data:

@@ -35,7 +35,13 @@ try {
   await page.locator('.shortlist-row').first().waitFor()
   await page.locator('main').screenshot({ path: `${OUT}/shortlist.png` })
 
-  // 4. The read side of the audit trail, with a revision expanded.
+  // 4. Where the operator picks a model and stores its key — showing that a stored key comes back
+  //    as a four-character hint and nothing more.
+  await page.getByRole('tab', { name: 'mallit' }).click()
+  await page.locator('.provider').first().waitFor()
+  await page.locator('main').screenshot({ path: `${OUT}/models.png` })
+
+  // 5. The read side of the audit trail, with a revision expanded.
   await page.getByRole('tab', { name: 'päätetyt' }).click()
   const decided = page.locator('.card-decided').first()
   await decided.waitFor()
@@ -43,7 +49,7 @@ try {
   await decided.locator('table.breakdown tr').first().waitFor()
   await decided.screenshot({ path: `${OUT}/decided-audit-trail.png` })
 
-  console.log('wrote queue-disagreement.png, search.png, shortlist.png, decided-audit-trail.png')
+  console.log('wrote queue-disagreement.png, search.png, shortlist.png, models.png, decided-audit-trail.png')
 } finally {
   await browser.close()
 }

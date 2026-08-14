@@ -1,7 +1,12 @@
 # Working in this repo
 
-Screening tool for Finnish public procurement notices. See `README.md` for the architecture and the
-reasoning behind it; this file covers the conventions that are easy to violate by accident.
+Screening tool for Finnish public procurement notices. `README.md` is the front door — what it does
+and how to run it. `docs/DESIGN.md` holds the architecture and the reasoning behind it, and
+`docs/GUIDE.md` is the operator's manual. This file covers the conventions that are easy to violate
+by accident.
+
+**Keep the README short.** It is a showcase and a quickstart, not a development log — new reasoning
+belongs in `docs/DESIGN.md`.
 
 ## The load-bearing invariant
 

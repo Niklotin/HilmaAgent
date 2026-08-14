@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# Both jobs are hermetic: no API keys, no network beyond the package registries, nothing that
+# costs money. The end-to-end suite is deliberately *not* here — it drives the built container
+# against a populated corpus, and a fresh runner has no notices to assert on. Running it here
+# would mean either seeding a fake corpus (testing the seed, not the app) or a permanently red
+# badge. It stays a local check; see the README.
+
+jobs:
+  backend:
+    name: .NET
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - run: dotnet restore
+
+      - run: dotnet build --no-restore --configuration Release
+
+      # DecisionWritePathTests starts a throwaway Postgres through Testcontainers, which works on
+      # the hosted runners because Docker is already available there. No keys are needed: the
+      # fixture forces the fake embedding provider and blanks the Gemini key, so a test can never
+      # quietly start spending someone else's money.
+      - run: dotnet test --no-build --configuration Release --verbosity normal
+
+  frontend:
+    name: Web
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - run: npm ci
+
+      - run: npm run lint
+
+      - run: npm test
+
+      # `tsc -b` runs here, which is the only command that actually type-checks this project —
+      # `tsc --noEmit` against the solution-style tsconfig checks nothing and exits 0.
+      - run: npm run build
